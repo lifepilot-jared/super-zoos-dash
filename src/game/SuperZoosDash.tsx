@@ -62,6 +62,9 @@ type GameState = {
   runStartedAt: number;
   messages: FloatingMessage[];
   idSeed: number;
+  doctorWinnieUntil: number;
+  doctorWinnieLane: Lane;
+  nextDoctorWinnieAt: number;
 };
 
 type GestureStart = {
@@ -182,6 +185,16 @@ const POWER = {
   jumpLandingGraceMs: 500,
 };
 
+const DOCTOR_WINNIE = {
+  maxDurationMs: 2200,
+  firstCameoMinMs: 10000,
+  firstCameoMaxMs: 14000,
+  subsequentMinMs: 10000,
+  subsequentMaxMs: 16000,
+  endGameMs: 45000,
+  possibleObstacles: ["backpack", "books", "trafficCone", "basketball"] as ObjectKind[],
+};
+
 const tutorialPlan: Array<Pick<RunnerObject, "kind" | "lane">> = [
   { kind: "star", lane: 0 },
   { kind: "star", lane: -1 },
@@ -213,6 +226,9 @@ function createInitialState(calmMode = false, soundOn = true, selectedHero: Hero
     runStartedAt: now,
     messages: [],
     idSeed: 1,
+    doctorWinnieUntil: 0,
+    doctorWinnieLane: 0,
+    nextDoctorWinnieAt: now + DOCTOR_WINNIE.firstCameoMinMs + Math.random() * (DOCTOR_WINNIE.firstCameoMaxMs - DOCTOR_WINNIE.firstCameoMinMs),
   };
 }
 
@@ -350,6 +366,8 @@ export function SuperZoosDash() {
       }
 
       const tuning = current.calmMode ? TUNING.calm : TUNING.normal;
+      const elapsedSeconds = (now - current.runStartedAt) / 1000;
+      
       let next: GameState = {
         ...current,
         score: current.score + tuning.scoreRate * dt,
@@ -362,11 +380,46 @@ export function SuperZoosDash() {
           };
         }),
         messages: current.messages.filter((message) => now - message.createdAt < 1700),
+        doctorWinnieUntil: Math.max(0, current.doctorWinnieUntil - dt * 1000),
       };
+
+      // Doctor Winnie cameo logic
+      if (elapsedSeconds < DOCTOR_WINNIE.endGameMs / 1000 && now >= next.nextDoctorWinnieAt) {
+        const lane = randomLane();
+        const obstacleKind = DOCTOR_WINNIE.possibleObstacles[
+          Math.floor(Math.random() * DOCTOR_WINNIE.possibleObstacles.length)
+        ] as ObjectKind;
+        
+        // Spawn the obstacle
+        next = spawnObject(next, now);
+        if (next.objects.length > 0) {
+          next.objects[next.objects.length - 1].kind = obstacleKind;
+          next.objects[next.objects.length - 1].lane = lane;
+        }
+        
+        // Show Doctor Winnie cameo
+        next.doctorWinnieUntil = DOCTOR_WINNIE.maxDurationMs;
+        next.doctorWinnieLane = lane;
+        
+        // Add message
+        const messages: Record<ObjectKind, string> = {
+          backpack: "Doctor Winnie dropped a backpack!",
+          books: "Doctor Winnie scattered books!",
+          trafficCone: "Doctor Winnie set a cone!",
+          basketball: "Doctor Winnie rolled out a ball!",
+          star: "Doctor Winnie found a star!",
+          heroBadge: "Doctor Winnie found a badge!",
+          bench: "Doctor Winnie moved a bench!",
+        };
+        next = addMessage(next, messages[obstacleKind] || "Doctor Winnie was here!", now);
+        
+        // Schedule next cameo
+        const delayRange = DOCTOR_WINNIE.subsequentMaxMs - DOCTOR_WINNIE.subsequentMinMs;
+        next.nextDoctorWinnieAt = now + DOCTOR_WINNIE.subsequentMinMs + Math.random() * delayRange;
+      }
 
       if (now >= next.nextSpawnAt) {
         next = spawnObject(next, now);
-        const elapsedSeconds = (now - next.runStartedAt) / 1000;
         const earlySafetyMultiplier = elapsedSeconds < 30 ? 1.32 : elapsedSeconds < 60 ? 1.16 : 1;
         next.nextSpawnAt = now + tuning.spawnGapMs * earlySafetyMultiplier * (1 + Math.random() * 0.36);
       }
@@ -466,7 +519,9 @@ export function SuperZoosDash() {
   const shieldCooldownSeconds = Math.max(0, Math.ceil((game.shieldCooldownUntil - now) / 1000));
   const jumping = now < game.jumpUntil;
   const canJump = game.screen === "playing" && now >= game.jumpUntil - 220;
+  const running = game.screen === "playing" && now >= game.jumpUntil;
   const selectedHero = HEROES[game.selectedHero];
+  const doctorWinnieVisible = game.doctorWinnieUntil > 0;
 
   function startRun() {
     audio.unlock();
@@ -640,10 +695,11 @@ export function SuperZoosDash() {
             <div className="gumtree left" />
             <div className="gumtree right" />
             <div className="fence" />
-            <div className="doctor-winnie-cameo" aria-hidden="true">
-              <img src={DOCTOR_WINNIE_IMAGE} alt="" />
-              <span>Doctor Winnie scattered the badges!</span>
-            </div>
+            {doctorWinnieVisible && (
+              <div className="doctor-winnie-cameo" style={{ left: `${playerLaneX(game.doctorWinnieLane)}%` }} aria-hidden="true">
+                <img src={DOCTOR_WINNIE_IMAGE} alt="" />
+              </div>
+            )}
             <div className="oval-perspective">
               <span className="lane-line left" />
               <span className="lane-line right" />
@@ -660,7 +716,7 @@ export function SuperZoosDash() {
               <RunnerObjectView key={object.id} object={object} />
             ))}
 
-            <PeterRunner hero={selectedHero} lane={game.lane} mode={heroMode} protectedNow={now < game.shieldActiveUntil} recovering={now < game.invulnerableUntil} jumping={jumping} />
+            <PeterRunner hero={selectedHero} lane={game.lane} mode={heroMode} protectedNow={now < game.shieldActiveUntil} recovering={now < game.invulnerableUntil} jumping={jumping} running={running} />
 
             {game.messages.map((message) => (
               <div key={message.id} className="floating-message">
@@ -785,10 +841,10 @@ function RunnerObjectView({ object }: { object: RunnerObject }) {
   );
 }
 
-function PeterRunner({ hero, lane, mode, protectedNow, recovering, jumping }: { hero: HeroProfile; lane: Lane; mode: PeterMode; protectedNow: boolean; recovering: boolean; jumping: boolean }) {
+function PeterRunner({ hero, lane, mode, protectedNow, recovering, jumping, running }: { hero: HeroProfile; lane: Lane; mode: PeterMode; protectedNow: boolean; recovering: boolean; jumping: boolean; running: boolean }) {
   return (
     <div
-      className={`peter-runner hero-runner ${hero.id} ${mode} ${protectedNow ? "shielded" : ""} ${recovering ? "recovering" : ""} ${jumping ? "jumping" : ""}`}
+      className={`peter-runner hero-runner ${hero.id} ${mode} ${protectedNow ? "shielded" : ""} ${recovering ? "recovering" : ""} ${jumping ? "jumping" : ""} ${running ? "running" : ""}`}
       style={{ left: `${playerLaneX(lane)}%`, transform: "translateX(-50%)" }}
       aria-label={mode === "super" ? hero.superName : hero.name}
     >
