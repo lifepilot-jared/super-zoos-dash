@@ -1,37 +1,79 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 260" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 280" role="img" aria-labelledby="title">
   <title id="title">Doctor Winnie</title>
-  <desc id="desc">A cheeky kid-safe Doctor Winnie character.</desc>
   <defs>
-    <filter id="softShadow" x="-30%" y="-20%" width="160%" height="150%">
-      <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#5c3a11" flood-opacity="0.22"/>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#5c4a35" flood-opacity="0.24"/>
     </filter>
-    <linearGradient id="coat" x1="0" x2="0" y1="0" y2="1">
-      <stop stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#d9eef4"/>
-    </linearGradient>
   </defs>
-  <ellipse cx="120" cy="238" rx="58" ry="12" fill="#5b3a10" opacity="0.16"/>
-  <g filter="url(#softShadow)">
-    <circle cx="72" cy="88" r="31" fill="#b87935"/>
-    <circle cx="168" cy="88" r="31" fill="#b87935"/>
-    <circle cx="72" cy="88" r="18" fill="#f6c783"/>
-    <circle cx="168" cy="88" r="18" fill="#f6c783"/>
-    <ellipse cx="120" cy="101" rx="61" ry="56" fill="#c98a3f"/>
-    <ellipse cx="120" cy="118" rx="38" ry="27" fill="#f2bd78"/>
-    <circle cx="98" cy="101" r="7" fill="#102433"/>
-    <circle cx="142" cy="101" r="7" fill="#102433"/>
-    <circle cx="98" cy="101" r="14" fill="none" stroke="#263646" stroke-width="5"/>
-    <circle cx="142" cy="101" r="14" fill="none" stroke="#263646" stroke-width="5"/>
-    <path d="M112 101h16" stroke="#263646" stroke-width="5" stroke-linecap="round"/>
-    <path d="M108 122c10 8 22 8 32 0" fill="none" stroke="#604225" stroke-width="5" stroke-linecap="round"/>
-    <path d="M90 45c12-26 47-31 62 0-20-9-42-9-62 0z" fill="#5c2f17"/>
-    <path d="M69 143h102c10 0 18 8 18 18v61H51v-61c0-10 8-18 18-18z" fill="url(#coat)"/>
-    <path d="M95 144l25 48 25-48" fill="none" stroke="#69a8bf" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect x="66" y="158" width="32" height="48" rx="8" fill="#ffffff" opacity="0.92"/>
-    <rect x="142" y="158" width="32" height="48" rx="8" fill="#ffffff" opacity="0.92"/>
-    <rect x="67" y="210" width="38" height="31" rx="12" fill="#6b4520"/>
-    <rect x="135" y="210" width="38" height="31" rx="12" fill="#6b4520"/>
-    <circle cx="178" cy="160" r="21" fill="#ffe66d" stroke="#fff" stroke-width="5"/>
-    <text x="178" y="169" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="900" fill="#ad5e10">!</text>
+  
+  <!-- Shadow on ground -->
+  <ellipse cx="120" cy="260" rx="56" ry="11" fill="#5c4a35" opacity="0.16"/>
+  
+  <g filter="url(#shadow)">
+    <!-- HEAD (warm brown) -->
+    <ellipse cx="120" cy="95" rx="54" ry="56" fill="#9d8670"/>
+    
+    <!-- FACE (tan) -->
+    <ellipse cx="120" cy="110" rx="42" ry="40" fill="#c9a878"/>
+    
+    <!-- NOSE -->
+    <ellipse cx="120" cy="115" rx="7" ry="6" fill="#8b7355"/>
+    
+    <!-- EYES (with glasses look) -->
+    <circle cx="100" cy="92" r="12" fill="none" stroke="#5c4a35" stroke-width="3"/>
+    <circle cx="140" cy="92" r="12" fill="none" stroke="#5c4a35" stroke-width="3"/>
+    
+    <!-- PUPILS -->
+    <circle cx="100" cy="95" r="6" fill="#1a1a1a"/>
+    <circle cx="140" cy="95" r="6" fill="#1a1a1a"/>
+    <circle cx="102" cy="92" r="2" fill="#ffffff"/>
+    <circle cx="142" cy="92" r="2" fill="#ffffff"/>
+    
+    <!-- SMILE (mischievous) -->
+    <path d="M 110 128 Q 120 138 130 128" fill="none" stroke="#6b5344" stroke-width="3.5" stroke-linecap="round"/>
+    
+    <!-- HAIR/TUFTS (brown, spiky) -->
+    <circle cx="95" cy="65" r="8" fill="#7a5230"/>
+    <circle cx="107" cy="57" r="9" fill="#8a6240"/>
+    <circle cx="120" cy="54" r="10" fill="#7a5230"/>
+    <circle cx="133" cy="57" r="9" fill="#8a6240"/>
+    <circle cx="145" cy="65" r="8" fill="#7a5230"/>
+    
+    <!-- EARS (small, tan) -->
+    <circle cx="72" cy="78" r="14" fill="#8b7355"/>
+    <circle cx="72" cy="80" r="8" fill="#c9a878"/>
+    <circle cx="168" cy="78" r="14" fill="#8b7355"/>
+    <circle cx="168" cy="80" r="8" fill="#c9a878"/>
+    
+    <!-- WHITE LAB COAT -->
+    <path d="M 65 150 L 68 160 L 68 235 Q 68 245 78 245 L 162 245 Q 172 245 172 235 L 172 160 L 175 150" 
+          fill="#f5f5f5" stroke="#e0e0e0" stroke-width="2"/>
+    
+    <!-- COAT LAPELS (subtle blue stripe) -->
+    <path d="M 95 160 L 108 215" fill="none" stroke="#5a9bce" stroke-width="7" stroke-linecap="round" opacity="0.7"/>
+    <path d="M 145 160 L 132 215" fill="none" stroke="#5a9bce" stroke-width="7" stroke-linecap="round" opacity="0.7"/>
+    
+    <!-- POCKETS -->
+    <rect x="75" y="180" width="26" height="38" rx="5" fill="#ffffff" stroke="#e0e0e0" stroke-width="2" opacity="0.9"/>
+    <rect x="139" y="180" width="26" height="38" rx="5" fill="#ffffff" stroke="#e0e0e0" stroke-width="2" opacity="0.9"/>
+    
+    <!-- LEFT ARM -->
+    <rect x="48" y="165" width="20" height="68" rx="10" fill="#c9a878" transform="rotate(-22 58 165)"/>
+    
+    <!-- RIGHT ARM (raised for mischief) -->
+    <rect x="172" y="150" width="20" height="68" rx="10" fill="#c9a878" transform="rotate(30 182 150)"/>
+    
+    <!-- BROWN SHOES -->
+    <ellipse cx="94" cy="268" rx="16" ry="10" fill="#6b5344"/>
+    <ellipse cx="94" cy="265" rx="14" ry="6" fill="#8b7355"/>
+    <ellipse cx="146" cy="268" rx="16" ry="10" fill="#6b5344"/>
+    <ellipse cx="146" cy="265" rx="14" ry="6" fill="#8b7355"/>
+    
+    <!-- MISCHIEF BADGE/EMBLEM (playful exclamation) -->
+    <circle cx="198" cy="140" r="16" fill="#ffd966" stroke="#ffffff" stroke-width="3"/>
+    <text x="198" y="152" font-family="Arial, sans-serif" font-size="24" font-weight="900" fill="#d4832f" text-anchor="middle">!</text>
+    
+    <!-- SMALL TAIL -->
+    <path d="M 170 220 Q 185 215 192 228" fill="none" stroke="#7a5230" stroke-width="4" stroke-linecap="round"/>
   </g>
 </svg>
