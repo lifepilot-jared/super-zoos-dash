@@ -1,106 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 280" role="img" aria-labelledby="title">
-  <title id="title">Judy - Rabbit Hero</title>
-  <defs>
-    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000000" flood-opacity="0.22"/>
-    </filter>
-    <linearGradient id="suitGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#ff5eb3;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#d61976;stop-opacity:1" />
-    </linearGradient>
-  </defs>
+<svg viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shadow -->
+  <ellipse cx="50" cy="130" rx="35" ry="6" fill="rgba(0,0,0,0.15)"/>
   
-  <!-- Shadow on ground -->
-  <ellipse cx="120" cy="260" rx="58" ry="12" fill="#000000" opacity="0.16"/>
+  <!-- Legs -->
+  <rect x="35" y="95" width="12" height="30" rx="6" fill="#8b3a5c"/>
+  <rect x="53" y="95" width="12" height="30" rx="6" fill="#8b3a5c"/>
   
-  <g filter="url(#shadow)">
-    <!-- LONG EARS -->
-    <!-- Left ear outer -->
-    <ellipse cx="55" cy="28" rx="14" ry="46" fill="#f5e8e8" transform="rotate(-18 55 28)"/>
-    <!-- Left ear inner (pink) -->
-    <ellipse cx="57" cy="35" rx="8" ry="38" fill="#f5b3d4" transform="rotate(-18 57 35)"/>
-    
-    <!-- Right ear outer -->
-    <ellipse cx="185" cy="28" rx="14" ry="46" fill="#f5e8e8" transform="rotate(18 185 28)"/>
-    <!-- Right ear inner (pink) -->
-    <ellipse cx="183" cy="35" rx="8" ry="38" fill="#f5b3d4" transform="rotate(18 183 35)"/>
-    
-    <!-- HEAD (white/pink plush) -->
-    <ellipse cx="120" cy="98" rx="50" ry="52" fill="#f5f5f5"/>
-    
-    <!-- HAIR/BANGS (brown) -->
-    <circle cx="95" cy="70" r="7" fill="#8a6240"/>
-    <circle cx="107" cy="62" r="8" fill="#7a5230"/>
-    <circle cx="120" cy="60" r="9" fill="#8a6240"/>
-    <circle cx="133" cy="62" r="8" fill="#7a5230"/>
-    <circle cx="145" cy="70" r="7" fill="#8a6240"/>
-    
-    <!-- FACE (white) -->
-    <ellipse cx="120" cy="112" rx="38" ry="36" fill="#fefefe"/>
-    
-    <!-- EYES -->
-    <circle cx="100" cy="95" r="11" fill="#ffffff"/>
-    <circle cx="140" cy="95" r="11" fill="#ffffff"/>
-    <circle cx="102" cy="98" r="7" fill="#1a1a1a"/>
-    <circle cx="142" cy="98" r="7" fill="#1a1a1a"/>
-    <circle cx="104" cy="94" r="2.5" fill="#ffffff"/>
-    <circle cx="144" cy="94" r="2.5" fill="#ffffff"/>
-    
-    <!-- NOSE (pink) -->
-    <ellipse cx="120" cy="115" rx="6" ry="5" fill="#ff94c6"/>
-    
-    <!-- SMILE/MOUTH -->
-    <path d="M 110 128 Q 120 136 130 128" fill="none" stroke="#d9a5b3" stroke-width="3" stroke-linecap="round"/>
-    
-    <!-- WHISKERS -->
-    <line x1="75" y1="110" x2="55" y2="108" stroke="#d9a5b3" stroke-width="2" stroke-linecap="round"/>
-    <line x1="165" y1="110" x2="185" y2="108" stroke="#d9a5b3" stroke-width="2" stroke-linecap="round"/>
-    
-    <!-- CHEEKS (rosy pink) -->
-    <circle cx="70" cy="115" r="11" fill="#ffc0e0" opacity="0.7"/>
-    <circle cx="170" cy="115" r="11" fill="#ffc0e0" opacity="0.7"/>
-    
-    <!-- BODY (hot pink suit) -->
-    <rect x="66" y="148" width="108" height="88" rx="26" fill="url(#suitGrad)"/>
-    
-    <!-- CHEST EMBLEM (J heart) -->
-    <g transform="translate(120, 172)">
-      <!-- Heart background -->
-      <ellipse cx="0" cy="0" rx="28" ry="30" fill="#ffd966" stroke="#ffffff" stroke-width="3"/>
-      <!-- J letter -->
-      <text x="0" y="10" font-family="Arial, sans-serif" font-size="40" font-weight="900" fill="#d61976" text-anchor="middle">J</text>
-      <!-- Small heart accent -->
-      <path d="M -8 -18 L -8 -18 L -12 -14 Q -14 -12 -14 -10 Q -14 -8 -12 -8 Q -10 -8 -8 -10 Q -6 -8 -4 -8 Q -2 -8 -2 -10 Q -2 -12 -4 -14 Z" fill="#ff5eb3"/>
-    </g>
-    
-    <!-- GOLD BELT -->
-    <rect x="70" y="205" width="100" height="6" rx="3" fill="#ffd966"/>
-    <circle cx="85" cy="208" r="3" fill="#ffffff"/>
-    <circle cx="120" cy="208" r="3" fill="#ffffff"/>
-    <circle cx="155" cy="208" r="3" fill="#ffffff"/>
-    
-    <!-- LEFT ARM -->
-    <rect x="42" y="162" width="24" height="70" rx="12" fill="#f5f5f5" transform="rotate(-18 54 162)"/>
-    
-    <!-- RIGHT ARM -->
-    <rect x="174" y="162" width="24" height="70" rx="12" fill="#f5f5f5" transform="rotate(18 186 162)"/>
-    
-    <!-- LEFT LEG -->
-    <rect x="80" y="230" width="28" height="46" rx="14" fill="#c6187d"/>
-    
-    <!-- RIGHT LEG -->
-    <rect x="132" y="230" width="28" height="46" rx="14" fill="#c6187d"/>
-    
-    <!-- LEFT SHOE (hot pink) -->
-    <ellipse cx="94" cy="268" rx="18" ry="10" fill="#c6187d"/>
-    <ellipse cx="94" cy="265" rx="16" ry="6" fill="#ff5eb3"/>
-    
-    <!-- RIGHT SHOE (hot pink) -->
-    <ellipse cx="146" cy="268" rx="18" ry="10" fill="#c6187d"/>
-    <ellipse cx="146" cy="265" rx="16" ry="6" fill="#ff5eb3"/>
-    
-    <!-- TAIL (fluffy, white/pink) -->
-    <circle cx="175" cy="225" r="12" fill="#f5f5f5"/>
-    <circle cx="178" cy="220" r="10" fill="#ffc0e0" opacity="0.8"/>
+  <!-- Torso (Pink) -->
+  <path d="M 30 50 Q 25 60 30 80 L 70 80 Q 75 60 70 50 Q 65 45 50 45 Q 35 45 30 50" fill="#d84d8f"/>
+  
+  <!-- Arms -->
+  <rect x="15" y="55" width="10" height="25" rx="5" fill="#f4c9d8" transform="rotate(-25 20 65)"/>
+  <rect x="75" y="55" width="10" height="25" rx="5" fill="#f4c9d8" transform="rotate(25 80 65)"/>
+  
+  <!-- Head -->
+  <circle cx="50" cy="30" r="20" fill="#fce4e8"/>
+  
+  <!-- Pigtails (Pink) -->
+  <circle cx="25" cy="18" r="7" fill="#f9a3c4"/>
+  <circle cx="75" cy="18" r="7" fill="#f9a3c4"/>
+  
+  <!-- Eyes -->
+  <circle cx="43" cy="28" r="3" fill="#101d2a"/>
+  <circle cx="57" cy="28" r="3" fill="#101d2a"/>
+  <circle cx="43.8" cy="27" r="1.2" fill="white"/>
+  <circle cx="57.8" cy="27" r="1.2" fill="white"/>
+  
+  <!-- Big Happy Smile -->
+  <path d="M 44 36 Q 50 40 56 36" stroke="rgba(74,63,61,0.6)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  
+  <!-- Rosy cheeks -->
+  <circle cx="32" cy="33" r="3.5" fill="rgba(243, 93, 159, 0.3)"/>
+  <circle cx="68" cy="33" r="3.5" fill="rgba(243, 93, 159, 0.3)"/>
+  
+  <!-- Power Badge (J) - shown in super mode via CSS -->
+  <g opacity="0" class="power-badge-judy">
+    <circle cx="50" cy="62" r="8" fill="white" stroke="#d84d8f" stroke-width="1.5"/>
+    <text x="50" y="67" font-size="12" font-weight="bold" fill="#d84d8f" text-anchor="middle">J</text>
   </g>
 </svg>
