@@ -49,18 +49,18 @@ type GestureStart = {
 };
 
 const LANES: Lane[] = [-1, 0, 1];
-const VERSION = "v0.2.4-jump-flow";
+const VERSION = "v0.2.5-danger-speed";
 
 const TUNING = {
   normal: {
-    objectSpeed: 0.34,
-    spawnGapMs: 1240,
-    scoreRate: 8.6,
+    objectSpeed: 0.46,
+    spawnGapMs: 1210,
+    scoreRate: 9.0,
   },
   calm: {
-    objectSpeed: 0.255,
-    spawnGapMs: 1780,
-    scoreRate: 5.7,
+    objectSpeed: 0.34,
+    spawnGapMs: 1760,
+    scoreRate: 5.8,
   },
 };
 
@@ -69,8 +69,8 @@ const POWER = {
   shieldCooldownMs: 5400,
   superDurationMs: 6200,
   graceAfterHitMs: 1150,
-  jumpDurationMs: 1050,
-  jumpLandingGraceMs: 260,
+  jumpDurationMs: 880,
+  jumpLandingGraceMs: 360,
 };
 
 const tutorialPlan: Array<Pick<RunnerObject, "kind" | "lane">> = [
@@ -106,6 +106,10 @@ function createInitialState(calmMode = false, soundOn = true): GameState {
 
 function isGood(kind: ObjectKind) {
   return kind === "star" || kind === "heroBadge";
+}
+
+function isDanger(kind: ObjectKind) {
+  return !isGood(kind);
 }
 
 function randomLane(): Lane {
@@ -151,21 +155,21 @@ function addMessage(state: GameState, text: string, now: number): GameState {
 }
 
 function objectStyle(object: RunnerObject): CSSProperties {
-  const progress = Math.max(0, Math.min(1.18, object.progress));
-  const visualProgress = Math.pow(Math.min(1, progress), 1.45);
+  const progress = Math.max(0, Math.min(1.24, object.progress));
+  const visualProgress = Math.min(1, progress * 1.06);
   const afterPlayerDrift = Math.max(0, progress - 1);
-  const laneSpread = 5 + visualProgress * 32;
+  const laneSpread = 7 + visualProgress * 32;
   const x = 50 + object.lane * laneSpread;
-  const y = 23 + visualProgress * 63 + afterPlayerDrift * 18;
-  const size = 0.32 + visualProgress * 1.28 + afterPlayerDrift * 0.18;
-  const opacity = 0.46 + visualProgress * 0.54;
+  const y = 20 + visualProgress * 70 + afterPlayerDrift * 24;
+  const size = 0.3 + visualProgress * 1.55 + afterPlayerDrift * 0.24;
+  const opacity = 0.44 + visualProgress * 0.56;
 
   return {
     left: `${x}%`,
     top: `${y}%`,
     transform: `translate(-50%, -50%) scale(${size})`,
     opacity,
-    zIndex: Math.round(10 + visualProgress * 8),
+    zIndex: Math.round(10 + visualProgress * 10),
   };
 }
 
@@ -219,7 +223,8 @@ export function SuperZoosDash() {
         ...current,
         score: current.score + tuning.scoreRate * dt,
         objects: current.objects.map((object) => {
-          const nearPlayerBoost = 0.84 + Math.min(1, object.progress) * 0.82;
+          const progress = Math.min(1, Math.max(0, object.progress));
+          const nearPlayerBoost = 0.95 + Math.pow(progress, 1.35) * 2.15;
           return {
             ...object,
             progress: object.progress + tuning.objectSpeed * dt * nearPlayerBoost,
@@ -235,7 +240,7 @@ export function SuperZoosDash() {
 
       const keptObjects: RunnerObject[] = [];
       for (const object of next.objects) {
-        const atPlayer = object.progress >= 0.92;
+        const atPlayer = object.progress >= 0.98;
         const sameLane = object.lane === next.lane;
 
         if (!atPlayer) {
@@ -244,7 +249,7 @@ export function SuperZoosDash() {
         }
 
         if (!sameLane) {
-          if (object.progress < 1.12) keptObjects.push(object);
+          if (object.progress < 1.14) keptObjects.push(object);
           continue;
         }
 
@@ -280,12 +285,12 @@ export function SuperZoosDash() {
         if (now >= next.invulnerableUntil) {
           next.hearts -= 1;
           next.invulnerableUntil = now + POWER.graceAfterHitMs;
-          next = addMessage(next, "Swipe, jump, or shield!", now);
+          next = addMessage(next, "Red ripple danger!", now);
           audio.play("bump");
         }
       }
 
-      next.objects = keptObjects.filter((object) => object.progress < 1.18);
+      next.objects = keptObjects.filter((object) => object.progress < 1.22);
 
       if (next.hearts <= 0) {
         const finalScore = Math.max(0, Math.floor(next.score));
@@ -315,7 +320,7 @@ export function SuperZoosDash() {
   const shieldReady = game.screen === "playing" && now >= game.shieldCooldownUntil;
   const shieldCooldownSeconds = Math.max(0, Math.ceil((game.shieldCooldownUntil - now) / 1000));
   const jumping = now < game.jumpUntil;
-  const canJump = game.screen === "playing" && now >= game.jumpUntil - 220;
+  const canJump = game.screen === "playing" && now >= game.jumpUntil - 180;
 
   function startRun() {
     audio.unlock();
@@ -361,7 +366,7 @@ export function SuperZoosDash() {
   function jump() {
     const current = gameRef.current;
     const jumpNow = performance.now();
-    if (current.screen !== "playing" || jumpNow < current.jumpUntil - 220) return;
+    if (current.screen !== "playing" || jumpNow < current.jumpUntil - 180) return;
     setGame({ ...current, jumpUntil: jumpNow + POWER.jumpDurationMs });
     audio.play("jump");
   }
@@ -411,12 +416,12 @@ export function SuperZoosDash() {
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
 
-    if (dy < -34 && absY > absX * 0.92) {
+    if (dy < -28 && absY > absX * 0.78) {
       jump();
       return;
     }
 
-    if (absX > 34 && absX > absY * 0.72) {
+    if (absX > 28 && absX > absY * 0.62) {
       stepLane(dx > 0 ? 1 : -1);
       return;
     }
@@ -468,7 +473,7 @@ export function SuperZoosDash() {
             onPointerUp={handleStagePointerUp}
             onPointerCancel={cancelGesture}
             role="application"
-            aria-label="Swipe left or right to move lanes. Swipe up to jump."
+            aria-label="Swipe left or right to move lanes. Swipe up to jump. Red danger ripples hurt Peter."
           >
             <div className="sky" />
             <div className="sun" />
@@ -484,7 +489,7 @@ export function SuperZoosDash() {
             <div className="clarity-strip">
               <span className="good">GET ★</span>
               <span className="power">GET blue P</span>
-              <span className="bad">DODGE red danger</span>
+              <span className="bad">RED RIPPLE = DANGER</span>
               <span className="jump">SWIPE ↑ JUMP</span>
             </div>
 
@@ -561,11 +566,11 @@ function StartScreen({ calmMode, onStart, onToggleCalm }: { calmMode: boolean; o
           <span className="super-peter-dot">Super Peter</span>
         </div>
         <h2>Ready to run?</h2>
-        <p><strong>Swipe left/right</strong> to move lanes. <strong>Swipe up</strong> or press Jump to clear red danger. Get stars and blue P.</p>
+        <p><strong>Swipe left/right</strong> to move lanes. <strong>Swipe up</strong> or press Jump to clear <strong>red danger ripples</strong>. Get stars and blue P.</p>
         <div className="legend-row" aria-hidden="true">
           <span className="legend-good">★ GET</span>
           <span className="legend-power">P POWER</span>
-          <span className="legend-bad">RED = DODGE</span>
+          <span className="legend-bad">RED RIPPLE = DANGER</span>
           <span className="legend-jump">↑ JUMP</span>
         </div>
         <div className="start-actions">
@@ -583,11 +588,12 @@ function StartScreen({ calmMode, onStart, onToggleCalm }: { calmMode: boolean; o
 
 function RunnerObjectView({ object }: { object: RunnerObject }) {
   const good = isGood(object.kind);
-  const label = object.kind === "heroBadge" ? "POWER" : good ? "GET" : "DODGE";
-  const symbol = object.kind === "star" ? "★" : object.kind === "heroBadge" ? "P" : object.kind === "meteor" ? "●" : "▰";
+  const danger = isDanger(object.kind);
+  const label = object.kind === "heroBadge" ? "POWER" : good ? "GET" : "DANGER";
+  const symbol = object.kind === "star" ? "★" : object.kind === "heroBadge" ? "P" : "!";
 
   return (
-    <div className={`runner-object ${object.kind} ${good ? "collect" : "danger"}`} style={objectStyle(object)} aria-hidden="true">
+    <div className={`runner-object ${object.kind} ${good ? "collect" : "danger"} ${danger ? "red-ripple" : ""}`} style={objectStyle(object)} aria-hidden="true">
       <span className="object-symbol">{symbol}</span>
       <span className="object-label">{label}</span>
     </div>
@@ -635,7 +641,7 @@ function Overlay({ title, subtitle, children }: { title: string; subtitle: strin
         <div className="legend-row" aria-hidden="true">
           <span className="legend-good">★ GET</span>
           <span className="legend-power">P POWER</span>
-          <span className="legend-bad">RED = DODGE</span>
+          <span className="legend-bad">RED RIPPLE = DANGER</span>
           <span className="legend-jump">↑ JUMP</span>
         </div>
         <div className="overlay-actions">{children}</div>
