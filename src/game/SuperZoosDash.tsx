@@ -741,6 +741,7 @@ function StartScreen({ calmMode, selectedHero, onSelectHero, onStart, onToggleCa
               <button
                 key={hero.id}
                 className={`hero-choice ${selected ? "selected" : ""}`}
+                style={selected ? { borderColor: hero.accent } : undefined}
                 type="button"
                 onClick={() => onSelectHero(hero.id)}
                 aria-pressed={selected}
@@ -775,7 +776,6 @@ function StartScreen({ calmMode, selectedHero, onSelectHero, onStart, onToggleCa
 function RunnerObjectView({ object }: { object: RunnerObject }) {
   const profile = OBJECT_PROFILES[object.kind];
   const good = isGood(object.kind);
-  const danger = isDanger(object.kind);
 
   return (
     <div className={`runner-object ${object.kind} ${good ? "collect" : "danger school-obstacle"}`} style={objectStyle(object)} aria-hidden="true">
