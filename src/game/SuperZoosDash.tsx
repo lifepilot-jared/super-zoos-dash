@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { createGameAudio } from "./audio";
 import { readBestScore, saveBestScore } from "./storage";
 import "./SuperZoosDash.css";
+import "./controlPatch.css";
 
 type Lane = -1 | 0 | 1;
 type ScreenState = "start" | "playing" | "paused" | "ended";
@@ -36,12 +37,19 @@ type GameState = {
   shieldCooldownUntil: number;
   superUntil: number;
   invulnerableUntil: number;
+  jumpUntil: number;
   messages: FloatingMessage[];
   idSeed: number;
 };
 
+type GestureStart = {
+  pointerId: number;
+  x: number;
+  y: number;
+};
+
 const LANES: Lane[] = [-1, 0, 1];
-const VERSION = "v0.2.2-audit";
+const VERSION = "v0.2.3-swipe-jump";
 
 const TUNING = {
   normal: {
@@ -61,6 +69,7 @@ const POWER = {
   shieldCooldownMs: 5400,
   superDurationMs: 6200,
   graceAfterHitMs: 1150,
+  jumpDurationMs: 720,
 };
 
 const tutorialPlan: Array<Pick<RunnerObject, "kind" | "lane">> = [
@@ -88,6 +97,7 @@ function createInitialState(calmMode = false, soundOn = true): GameState {
     shieldCooldownUntil: 0,
     superUntil: 0,
     invulnerableUntil: 0,
+    jumpUntil: 0,
     messages: [],
     idSeed: 1,
   };
@@ -139,7 +149,7 @@ function addMessage(state: GameState, text: string, now: number): GameState {
   };
 }
 
-function objectStyle(object: RunnerObject): React.CSSProperties {
+function objectStyle(object: RunnerObject): CSSProperties {
   const progress = Math.max(0, Math.min(1.08, object.progress));
   const laneSpread = 6 + progress * 26;
   const x = 50 + object.lane * laneSpread;
@@ -155,10 +165,19 @@ function objectStyle(object: RunnerObject): React.CSSProperties {
   };
 }
 
+function clampLaneIndex(index: number) {
+  return Math.max(0, Math.min(LANES.length - 1, index));
+}
+
+function playerLaneX(lane: Lane) {
+  return 50 + lane * 25.5;
+}
+
 export function SuperZoosDash() {
   const [game, setGameState] = useState<GameState>(() => createInitialState());
   const gameRef = useRef(game);
   const lastFrameRef = useRef<number | null>(null);
+  const gestureStartRef = useRef<GestureStart | null>(null);
   const audio = useMemo(() => createGameAudio(() => gameRef.current.soundOn), []);
 
   function setGame(next: GameState) {
@@ -237,6 +256,13 @@ export function SuperZoosDash() {
           continue;
         }
 
+        if (now < next.jumpUntil) {
+          next.score += 8;
+          next = addMessage(next, "Jump clear!", now);
+          audio.play("jump");
+          continue;
+        }
+
         if (now < next.shieldActiveUntil) {
           next.score += 10;
           next = addMessage(next, "Shield clear!", now);
@@ -247,7 +273,7 @@ export function SuperZoosDash() {
         if (now >= next.invulnerableUntil) {
           next.hearts -= 1;
           next.invulnerableUntil = now + POWER.graceAfterHitMs;
-          next = addMessage(next, "Move lanes or shield!", now);
+          next = addMessage(next, "Swipe, jump, or shield!", now);
           audio.play("bump");
         }
       }
@@ -281,6 +307,8 @@ export function SuperZoosDash() {
   const peterMode: PeterMode = now < game.superUntil || now < game.shieldActiveUntil ? "super" : "normal";
   const shieldReady = game.screen === "playing" && now >= game.shieldCooldownUntil;
   const shieldCooldownSeconds = Math.max(0, Math.ceil((game.shieldCooldownUntil - now) / 1000));
+  const jumping = now < game.jumpUntil;
+  const canJump = game.screen === "playing" && !jumping;
 
   function startRun() {
     audio.unlock();
@@ -316,6 +344,21 @@ export function SuperZoosDash() {
     setGame({ ...current, lane });
   }
 
+  function stepLane(direction: -1 | 1) {
+    const current = gameRef.current;
+    const currentIndex = LANES.indexOf(current.lane);
+    const nextLane = LANES[clampLaneIndex(currentIndex + direction)] ?? 0;
+    moveToLane(nextLane);
+  }
+
+  function jump() {
+    const current = gameRef.current;
+    const jumpNow = performance.now();
+    if (current.screen !== "playing" || jumpNow < current.jumpUntil - 150) return;
+    setGame({ ...current, jumpUntil: jumpNow + POWER.jumpDurationMs });
+    audio.play("jump");
+  }
+
   function activateShield() {
     const current = gameRef.current;
     const shieldNow = performance.now();
@@ -332,11 +375,45 @@ export function SuperZoosDash() {
     audio.play("shield");
   }
 
-  function handleStagePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+  function handleStagePointerDown(event: PointerEvent<HTMLDivElement>) {
     event.preventDefault();
+    if (gameRef.current.screen !== "playing") return;
+    gestureStartRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    };
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Some iPad/browser combinations may not allow pointer capture. The gesture still works without it.
+    }
+  }
+
+  function handleStagePointerUp(event: PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const start = gestureStartRef.current;
+    gestureStartRef.current = null;
     if (gameRef.current.screen !== "playing") return;
 
     const bounds = event.currentTarget.getBoundingClientRect();
+    const startX = start?.x ?? event.clientX;
+    const startY = start?.y ?? event.clientY;
+    const dx = event.clientX - startX;
+    const dy = event.clientY - startY;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    if (dy < -42 && absY > absX * 1.05) {
+      jump();
+      return;
+    }
+
+    if (absX > 42 && absX > absY * 0.85) {
+      stepLane(dx > 0 ? 1 : -1);
+      return;
+    }
+
     const x = event.clientX - bounds.left;
     const third = bounds.width / 3;
     if (x < third) moveToLane(-1);
@@ -344,7 +421,11 @@ export function SuperZoosDash() {
     else moveToLane(0);
   }
 
-  function stopControlEvent(event: React.PointerEvent<HTMLElement>) {
+  function cancelGesture() {
+    gestureStartRef.current = null;
+  }
+
+  function stopControlEvent(event: PointerEvent<HTMLElement>) {
     event.stopPropagation();
   }
 
@@ -374,7 +455,14 @@ export function SuperZoosDash() {
         {game.screen === "start" ? (
           <StartScreen calmMode={game.calmMode} onStart={startRun} onToggleCalm={toggleCalmMode} />
         ) : (
-          <div className="stage" onPointerDown={handleStagePointerDown} role="application" aria-label="Tap left, middle, or right lane to move Peter">
+          <div
+            className="stage"
+            onPointerDown={handleStagePointerDown}
+            onPointerUp={handleStagePointerUp}
+            onPointerCancel={cancelGesture}
+            role="application"
+            aria-label="Swipe left or right to move lanes. Swipe up to jump."
+          >
             <div className="sky" />
             <div className="sun" />
             <div className="hall" />
@@ -390,13 +478,14 @@ export function SuperZoosDash() {
               <span className="good">GET ★</span>
               <span className="power">GET blue P</span>
               <span className="bad">DODGE red danger</span>
+              <span className="jump">SWIPE ↑ JUMP</span>
             </div>
 
             {game.objects.map((object) => (
               <RunnerObjectView key={object.id} object={object} />
             ))}
 
-            <PeterRunner lane={game.lane} mode={peterMode} protectedNow={now < game.shieldActiveUntil} recovering={now < game.invulnerableUntil} />
+            <PeterRunner lane={game.lane} mode={peterMode} protectedNow={now < game.shieldActiveUntil} recovering={now < game.invulnerableUntil} jumping={jumping} />
 
             {game.messages.map((message) => (
               <div key={message.id} className="floating-message">
@@ -442,6 +531,9 @@ export function SuperZoosDash() {
             <button type="button" onClick={() => moveToLane(1)} disabled={game.screen !== "playing"}>
               Right
             </button>
+            <button className="jump-button" type="button" disabled={!canJump} onClick={jump}>
+              {jumping ? "Jumping" : "Jump"}
+            </button>
             <button className="shield-button" type="button" disabled={!shieldReady} onClick={activateShield}>
               {shieldReady ? "Shield" : `Shield ${shieldCooldownSeconds}s`}
             </button>
@@ -462,11 +554,12 @@ function StartScreen({ calmMode, onStart, onToggleCalm }: { calmMode: boolean; o
           <span className="super-peter-dot">Super Peter</span>
         </div>
         <h2>Ready to run?</h2>
-        <p>Move left, middle, or right. Get stars and blue P. Dodge anything marked red.</p>
+        <p><strong>Swipe left/right</strong> to move lanes. <strong>Swipe up</strong> or press Jump to hop over red danger. Get stars and blue P.</p>
         <div className="legend-row" aria-hidden="true">
           <span className="legend-good">★ GET</span>
           <span className="legend-power">P POWER</span>
           <span className="legend-bad">RED = DODGE</span>
+          <span className="legend-jump">↑ JUMP</span>
         </div>
         <div className="start-actions">
           <button className="primary-button start-run-button" type="button" onClick={onStart}>
@@ -494,13 +587,11 @@ function RunnerObjectView({ object }: { object: RunnerObject }) {
   );
 }
 
-function PeterRunner({ lane, mode, protectedNow, recovering }: { lane: Lane; mode: PeterMode; protectedNow: boolean; recovering: boolean }) {
-  const laneOffset = lane * 24;
-
+function PeterRunner({ lane, mode, protectedNow, recovering, jumping }: { lane: Lane; mode: PeterMode; protectedNow: boolean; recovering: boolean; jumping: boolean }) {
   return (
     <div
-      className={`peter-runner ${mode} ${protectedNow ? "shielded" : ""} ${recovering ? "recovering" : ""}`}
-      style={{ transform: `translateX(calc(-50% + ${laneOffset}%))` }}
+      className={`peter-runner ${mode} ${protectedNow ? "shielded" : ""} ${recovering ? "recovering" : ""} ${jumping ? "jumping" : ""}`}
+      style={{ left: `${playerLaneX(lane)}%`, transform: "translateX(-50%)" }}
       aria-label={mode === "super" ? "Super Peter" : "Peter"}
     >
       <div className="peter-shadow" />
@@ -528,7 +619,7 @@ function PeterRunner({ lane, mode, protectedNow, recovering }: { lane: Lane; mod
   );
 }
 
-function Overlay({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+function Overlay({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
     <div className="overlay" onPointerDown={(event) => event.stopPropagation()}>
       <div className="overlay-panel">
@@ -538,6 +629,7 @@ function Overlay({ title, subtitle, children }: { title: string; subtitle: strin
           <span className="legend-good">★ GET</span>
           <span className="legend-power">P POWER</span>
           <span className="legend-bad">RED = DODGE</span>
+          <span className="legend-jump">↑ JUMP</span>
         </div>
         <div className="overlay-actions">{children}</div>
       </div>
