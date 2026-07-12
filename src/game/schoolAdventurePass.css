@@ -106,13 +106,14 @@
 .doctor-winnie-cameo {
   position: absolute;
   z-index: 12;
-  right: 10px;
   top: 66px;
   display: grid;
   justify-items: center;
   gap: 4px;
   width: clamp(78px, 12vw, 122px);
   pointer-events: none;
+  transform: translateX(-50%);
+  animation: doctorWinnieDash 2.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 .doctor-winnie-cameo img {
@@ -122,20 +123,51 @@
   filter: drop-shadow(0 10px 16px rgba(91, 57, 11, 0.24));
 }
 
-.doctor-winnie-cameo span {
-  padding: 5px 7px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #6c4310;
-  font-size: clamp(0.54rem, 1.4vw, 0.74rem);
-  font-weight: 1000;
-  line-height: 1.08;
-  text-align: center;
-  box-shadow: 0 6px 14px rgba(53, 89, 114, 0.16);
-}
-
 .hero-runner {
   bottom: 6%;
+}
+
+.hero-runner.running .hero-sprite-wrap {
+  animation: runningBob 0.6s ease-in-out infinite;
+}
+
+.hero-runner.running .hero-cape {
+  animation: capeFlutter 0.5s ease-in-out infinite;
+}
+
+@keyframes runningBob {
+  0%, 100% {
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    transform: translateY(-8px) scaleY(0.98);
+  }
+}
+
+@keyframes capeFlutter {
+  0%, 100% {
+    transform: rotate(8deg) scaleY(1);
+  }
+  50% {
+    transform: rotate(12deg) scaleY(1.05);
+  }
+}
+
+@keyframes doctorWinnieDash {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateX(-60px) scaleX(0.8);
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateX(60px) scaleX(0.8);
+  }
 }
 
 .hero-runner .hero-sprite-wrap {
