@@ -49,17 +49,17 @@ type GestureStart = {
 };
 
 const LANES: Lane[] = [-1, 0, 1];
-const VERSION = "v0.2.3-swipe-jump";
+const VERSION = "v0.2.4-jump-flow";
 
 const TUNING = {
   normal: {
-    objectSpeed: 0.31,
-    spawnGapMs: 1220,
-    scoreRate: 8.4,
+    objectSpeed: 0.34,
+    spawnGapMs: 1240,
+    scoreRate: 8.6,
   },
   calm: {
-    objectSpeed: 0.235,
-    spawnGapMs: 1720,
+    objectSpeed: 0.255,
+    spawnGapMs: 1780,
     scoreRate: 5.7,
   },
 };
@@ -69,7 +69,8 @@ const POWER = {
   shieldCooldownMs: 5400,
   superDurationMs: 6200,
   graceAfterHitMs: 1150,
-  jumpDurationMs: 720,
+  jumpDurationMs: 1050,
+  jumpLandingGraceMs: 260,
 };
 
 const tutorialPlan: Array<Pick<RunnerObject, "kind" | "lane">> = [
@@ -150,18 +151,21 @@ function addMessage(state: GameState, text: string, now: number): GameState {
 }
 
 function objectStyle(object: RunnerObject): CSSProperties {
-  const progress = Math.max(0, Math.min(1.08, object.progress));
-  const laneSpread = 6 + progress * 26;
+  const progress = Math.max(0, Math.min(1.18, object.progress));
+  const visualProgress = Math.pow(Math.min(1, progress), 1.45);
+  const afterPlayerDrift = Math.max(0, progress - 1);
+  const laneSpread = 5 + visualProgress * 32;
   const x = 50 + object.lane * laneSpread;
-  const y = 26 + progress * 58;
-  const size = 0.34 + progress * 1.08;
-  const opacity = 0.46 + progress * 0.54;
+  const y = 23 + visualProgress * 63 + afterPlayerDrift * 18;
+  const size = 0.32 + visualProgress * 1.28 + afterPlayerDrift * 0.18;
+  const opacity = 0.46 + visualProgress * 0.54;
 
   return {
     left: `${x}%`,
     top: `${y}%`,
     transform: `translate(-50%, -50%) scale(${size})`,
     opacity,
+    zIndex: Math.round(10 + visualProgress * 8),
   };
 }
 
@@ -214,21 +218,24 @@ export function SuperZoosDash() {
       let next: GameState = {
         ...current,
         score: current.score + tuning.scoreRate * dt,
-        objects: current.objects.map((object) => ({
-          ...object,
-          progress: object.progress + tuning.objectSpeed * dt,
-        })),
+        objects: current.objects.map((object) => {
+          const nearPlayerBoost = 0.84 + Math.min(1, object.progress) * 0.82;
+          return {
+            ...object,
+            progress: object.progress + tuning.objectSpeed * dt * nearPlayerBoost,
+          };
+        }),
         messages: current.messages.filter((message) => now - message.createdAt < 1500),
       };
 
       if (now >= next.nextSpawnAt) {
         next = spawnObject(next);
-        next.nextSpawnAt = now + tuning.spawnGapMs * (0.88 + Math.random() * 0.25);
+        next.nextSpawnAt = now + tuning.spawnGapMs * (0.9 + Math.random() * 0.24);
       }
 
       const keptObjects: RunnerObject[] = [];
       for (const object of next.objects) {
-        const atPlayer = object.progress >= 0.86;
+        const atPlayer = object.progress >= 0.92;
         const sameLane = object.lane === next.lane;
 
         if (!atPlayer) {
@@ -256,7 +263,7 @@ export function SuperZoosDash() {
           continue;
         }
 
-        if (now < next.jumpUntil) {
+        if (now < next.jumpUntil + POWER.jumpLandingGraceMs) {
           next.score += 8;
           next = addMessage(next, "Jump clear!", now);
           audio.play("jump");
@@ -308,7 +315,7 @@ export function SuperZoosDash() {
   const shieldReady = game.screen === "playing" && now >= game.shieldCooldownUntil;
   const shieldCooldownSeconds = Math.max(0, Math.ceil((game.shieldCooldownUntil - now) / 1000));
   const jumping = now < game.jumpUntil;
-  const canJump = game.screen === "playing" && !jumping;
+  const canJump = game.screen === "playing" && now >= game.jumpUntil - 220;
 
   function startRun() {
     audio.unlock();
@@ -354,7 +361,7 @@ export function SuperZoosDash() {
   function jump() {
     const current = gameRef.current;
     const jumpNow = performance.now();
-    if (current.screen !== "playing" || jumpNow < current.jumpUntil - 150) return;
+    if (current.screen !== "playing" || jumpNow < current.jumpUntil - 220) return;
     setGame({ ...current, jumpUntil: jumpNow + POWER.jumpDurationMs });
     audio.play("jump");
   }
@@ -404,12 +411,12 @@ export function SuperZoosDash() {
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
 
-    if (dy < -42 && absY > absX * 1.05) {
+    if (dy < -34 && absY > absX * 0.92) {
       jump();
       return;
     }
 
-    if (absX > 42 && absX > absY * 0.85) {
+    if (absX > 34 && absX > absY * 0.72) {
       stepLane(dx > 0 ? 1 : -1);
       return;
     }
@@ -418,7 +425,7 @@ export function SuperZoosDash() {
     const third = bounds.width / 3;
     if (x < third) moveToLane(-1);
     else if (x > third * 2) moveToLane(1);
-    else moveToLane(0);
+    else jump();
   }
 
   function cancelGesture() {
@@ -554,7 +561,7 @@ function StartScreen({ calmMode, onStart, onToggleCalm }: { calmMode: boolean; o
           <span className="super-peter-dot">Super Peter</span>
         </div>
         <h2>Ready to run?</h2>
-        <p><strong>Swipe left/right</strong> to move lanes. <strong>Swipe up</strong> or press Jump to hop over red danger. Get stars and blue P.</p>
+        <p><strong>Swipe left/right</strong> to move lanes. <strong>Swipe up</strong> or press Jump to clear red danger. Get stars and blue P.</p>
         <div className="legend-row" aria-hidden="true">
           <span className="legend-good">★ GET</span>
           <span className="legend-power">P POWER</span>
