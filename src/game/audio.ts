@@ -1,8 +1,14 @@
 import type { GameSound } from "./gameTypes";
 
-// Empty by default so the MVP never throws 404 errors before real clips are uploaded.
-// Add paths such as "/super-zoos-dash/sounds/peter-trumpet.mp3" after clips are committed.
-const SOUND_PATHS: Partial<Record<GameSound, string>> = {};
+// Sound paths for audio feedback. Falls back gracefully if files missing.
+const SOUND_PATHS: Partial<Record<GameSound, string>> = {
+  jump: "/super-zoos-dash/sounds/jump.mp3",
+  gem: "/super-zoos-dash/sounds/gem.mp3",
+  heroPower: "/super-zoos-dash/sounds/hero-power.mp3",
+  shield: "/super-zoos-dash/sounds/shield.mp3",
+  bump: "/super-zoos-dash/sounds/bump.mp3",
+  runEnd: "/super-zoos-dash/sounds/run-end.mp3",
+};
 
 export type GameAudioController = {
   unlock: () => void;
