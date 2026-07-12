@@ -13,7 +13,6 @@ type RunnerObject = {
   kind: ObjectKind;
   lane: Lane;
   progress: number;
-  handled?: boolean;
 };
 
 type FloatingMessage = {
@@ -37,12 +36,12 @@ type GameState = {
   shieldCooldownUntil: number;
   superUntil: number;
   invulnerableUntil: number;
-  startAt: number;
   messages: FloatingMessage[];
   idSeed: number;
 };
 
 const LANES: Lane[] = [-1, 0, 1];
+const VERSION = "v0.2.2-audit";
 
 const TUNING = {
   normal: {
@@ -89,7 +88,6 @@ function createInitialState(calmMode = false, soundOn = true): GameState {
     shieldCooldownUntil: 0,
     superUntil: 0,
     invulnerableUntil: 0,
-    startAt: now,
     messages: [],
     idSeed: 1,
   };
@@ -288,7 +286,7 @@ export function SuperZoosDash() {
     audio.unlock();
     lastFrameRef.current = null;
     const fresh = createInitialState(gameRef.current.calmMode, gameRef.current.soundOn);
-    setGame({ ...fresh, screen: "playing", startAt: performance.now() });
+    setGame({ ...fresh, screen: "playing" });
   }
 
   function pauseRun() {
@@ -355,7 +353,7 @@ export function SuperZoosDash() {
       <section className="runner-shell">
         <header className="top-bar">
           <div>
-            <p className="eyebrow">Super Zoos</p>
+            <p className="eyebrow">Super Zoos <span className="version-chip">{VERSION}</span></p>
             <h1>Super Zoos Dash</h1>
           </div>
           <button className="small-button" type="button" onClick={toggleSound}>
@@ -373,89 +371,113 @@ export function SuperZoosDash() {
           </span>
         </div>
 
-        <div className="stage" onPointerDown={handleStagePointerDown} role="application" aria-label="Tap left, middle, or right lane to move Peter">
-          <div className="sky" />
-          <div className="sun" />
-          <div className="hall" />
-          <div className="gumtree left" />
-          <div className="gumtree right" />
-          <div className="fence" />
-          <div className="oval-perspective">
-            <span className="lane-line left" />
-            <span className="lane-line right" />
-            <span className="horizon" />
-          </div>
-          <div className="clarity-strip">
-            <span className="good">GET ★</span>
-            <span className="power">GET blue P</span>
-            <span className="bad">DODGE red danger</span>
-          </div>
-
-          {game.objects.map((object) => (
-            <RunnerObjectView key={object.id} object={object} />
-          ))}
-
-          <PeterRunner lane={game.lane} mode={peterMode} protectedNow={now < game.shieldActiveUntil} recovering={now < game.invulnerableUntil} />
-
-          {game.messages.map((message) => (
-            <div key={message.id} className="floating-message">
-              {message.text}
+        {game.screen === "start" ? (
+          <StartScreen calmMode={game.calmMode} onStart={startRun} onToggleCalm={toggleCalmMode} />
+        ) : (
+          <div className="stage" onPointerDown={handleStagePointerDown} role="application" aria-label="Tap left, middle, or right lane to move Peter">
+            <div className="sky" />
+            <div className="sun" />
+            <div className="hall" />
+            <div className="gumtree left" />
+            <div className="gumtree right" />
+            <div className="fence" />
+            <div className="oval-perspective">
+              <span className="lane-line left" />
+              <span className="lane-line right" />
+              <span className="horizon" />
             </div>
-          ))}
+            <div className="clarity-strip">
+              <span className="good">GET ★</span>
+              <span className="power">GET blue P</span>
+              <span className="bad">DODGE red danger</span>
+            </div>
 
-          {game.screen === "playing" && (
-            <button className="pause-button" type="button" onClick={pauseRun} onPointerDown={stopControlEvent} aria-label="Pause run">
-              Pause
+            {game.objects.map((object) => (
+              <RunnerObjectView key={object.id} object={object} />
+            ))}
+
+            <PeterRunner lane={game.lane} mode={peterMode} protectedNow={now < game.shieldActiveUntil} recovering={now < game.invulnerableUntil} />
+
+            {game.messages.map((message) => (
+              <div key={message.id} className="floating-message">
+                {message.text}
+              </div>
+            ))}
+
+            {game.screen === "playing" && (
+              <button className="pause-button" type="button" onClick={pauseRun} onPointerDown={stopControlEvent} aria-label="Pause run">
+                Pause
+              </button>
+            )}
+
+            {game.screen === "paused" && (
+              <Overlay title="Paused" subtitle="Peter is safe. Ready when you are.">
+                <button className="primary-button" type="button" onClick={resumeRun} onPointerDown={stopControlEvent}>
+                  Resume
+                </button>
+                <button className="secondary-button" type="button" onClick={startRun} onPointerDown={stopControlEvent}>
+                  Restart
+                </button>
+              </Overlay>
+            )}
+
+            {game.screen === "ended" && (
+              <Overlay title="Great run, Super Peter!" subtitle={`Score ${Math.floor(game.score)} • Best ${game.bestScore}`}>
+                <button className="primary-button" type="button" onClick={startRun} onPointerDown={stopControlEvent}>
+                  Try Again
+                </button>
+              </Overlay>
+            )}
+          </div>
+        )}
+
+        {game.screen !== "start" && (
+          <div className="lane-controls" onPointerDown={stopControlEvent}>
+            <button type="button" onClick={() => moveToLane(-1)} disabled={game.screen !== "playing"}>
+              Left
             </button>
-          )}
-
-          {game.screen === "start" && (
-            <Overlay title="Super Zoos Dash" subtitle="Move lanes. Get stars and blue P. Dodge the red danger.">
-              <button className="primary-button" type="button" onClick={startRun} onPointerDown={stopControlEvent}>
-                Start Run
-              </button>
-              <button className="secondary-button" type="button" onClick={toggleCalmMode} onPointerDown={stopControlEvent}>
-                Calm Mode: {game.calmMode ? "On" : "Off"}
-              </button>
-            </Overlay>
-          )}
-
-          {game.screen === "paused" && (
-            <Overlay title="Paused" subtitle="Peter is safe. Ready when you are.">
-              <button className="primary-button" type="button" onClick={resumeRun} onPointerDown={stopControlEvent}>
-                Resume
-              </button>
-              <button className="secondary-button" type="button" onClick={startRun} onPointerDown={stopControlEvent}>
-                Restart
-              </button>
-            </Overlay>
-          )}
-
-          {game.screen === "ended" && (
-            <Overlay title="Great run, Super Peter!" subtitle={`Score ${Math.floor(game.score)} • Best ${game.bestScore}`}>
-              <button className="primary-button" type="button" onClick={startRun} onPointerDown={stopControlEvent}>
-                Try Again
-              </button>
-            </Overlay>
-          )}
-        </div>
-
-        <div className="lane-controls" onPointerDown={stopControlEvent}>
-          <button type="button" onClick={() => moveToLane(-1)} disabled={game.screen !== "playing"}>
-            Left
-          </button>
-          <button type="button" onClick={() => moveToLane(0)} disabled={game.screen !== "playing"}>
-            Middle
-          </button>
-          <button type="button" onClick={() => moveToLane(1)} disabled={game.screen !== "playing"}>
-            Right
-          </button>
-          <button className="shield-button" type="button" disabled={!shieldReady} onClick={activateShield}>
-            {shieldReady ? "Shield" : `Shield ${shieldCooldownSeconds}s`}
-          </button>
-        </div>
+            <button type="button" onClick={() => moveToLane(0)} disabled={game.screen !== "playing"}>
+              Middle
+            </button>
+            <button type="button" onClick={() => moveToLane(1)} disabled={game.screen !== "playing"}>
+              Right
+            </button>
+            <button className="shield-button" type="button" disabled={!shieldReady} onClick={activateShield}>
+              {shieldReady ? "Shield" : `Shield ${shieldCooldownSeconds}s`}
+            </button>
+          </div>
+        )}
       </section>
     </main>
+  );
+}
+
+function StartScreen({ calmMode, onStart, onToggleCalm }: { calmMode: boolean; onStart: () => void; onToggleCalm: () => void }) {
+  return (
+    <div className="start-screen">
+      <div className="start-card">
+        <div className="start-peter" aria-hidden="true">
+          <span className="normal-peter-dot">Peter</span>
+          <span className="transform-arrow">→</span>
+          <span className="super-peter-dot">Super Peter</span>
+        </div>
+        <h2>Ready to run?</h2>
+        <p>Move left, middle, or right. Get stars and blue P. Dodge anything marked red.</p>
+        <div className="legend-row" aria-hidden="true">
+          <span className="legend-good">★ GET</span>
+          <span className="legend-power">P POWER</span>
+          <span className="legend-bad">RED = DODGE</span>
+        </div>
+        <div className="start-actions">
+          <button className="primary-button start-run-button" type="button" onClick={onStart}>
+            Start Run
+          </button>
+          <button className="secondary-button" type="button" onClick={onToggleCalm}>
+            Calm Mode: {calmMode ? "On" : "Off"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
