@@ -1,11 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { characterAssetSlots } from "./assets";
 import { createGameAudio } from "./audio";
-import { intersects, shrinkRect } from "./collision";
-import { MODE, PLAYER, POWERS, WORLD } from "./gameConstants";
-import type { Collectible, CollectibleKind, FloatingMessage, Obstacle, ObstacleKind, PeterMode, Rect, ScreenState } from "./gameTypes";
 import { readBestScore, saveBestScore } from "./storage";
 import "./SuperZoosDash.css";
+
+type Lane = -1 | 0 | 1;
+type ScreenState = "start" | "playing" | "paused" | "ended";
+type PeterMode = "normal" | "super";
+type ObjectKind = "star" | "heroBadge" | "meteor" | "ice";
+
+type RunnerObject = {
+  id: number;
+  kind: ObjectKind;
+  lane: Lane;
+  progress: number;
+  handled?: boolean;
+};
+
+type FloatingMessage = {
+  id: number;
+  text: string;
+  createdAt: number;
+};
 
 type GameState = {
   screen: ScreenState;
@@ -14,23 +29,47 @@ type GameState = {
   score: number;
   bestScore: number;
   hearts: number;
-  playerY: number;
-  playerVy: number;
-  grounded: boolean;
-  obstacles: Obstacle[];
-  collectibles: Collectible[];
+  lane: Lane;
+  objects: RunnerObject[];
+  nextSpawnAt: number;
+  tutorialIndex: number;
   shieldActiveUntil: number;
   shieldCooldownUntil: number;
-  invulnerableUntil: number;
   superUntil: number;
-  nextObstacleAt: number;
-  nextCollectibleAt: number;
-  nextPowerAt: number;
+  invulnerableUntil: number;
+  startAt: number;
   messages: FloatingMessage[];
   idSeed: number;
 };
 
-const groundPlayerY = WORLD.groundY - PLAYER.height;
+const LANES: Lane[] = [-1, 0, 1];
+
+const TUNING = {
+  normal: {
+    objectSpeed: 0.31,
+    spawnGapMs: 1220,
+    scoreRate: 8.4,
+  },
+  calm: {
+    objectSpeed: 0.235,
+    spawnGapMs: 1720,
+    scoreRate: 5.7,
+  },
+};
+
+const POWER = {
+  shieldDurationMs: 2450,
+  shieldCooldownMs: 5400,
+  superDurationMs: 6200,
+  graceAfterHitMs: 1150,
+};
+
+const tutorialPlan: Array<Pick<RunnerObject, "kind" | "lane">> = [
+  { kind: "star", lane: 0 },
+  { kind: "heroBadge", lane: 1 },
+  { kind: "meteor", lane: -1 },
+  { kind: "ice", lane: 0 },
+];
 
 function createInitialState(calmMode = false, soundOn = true): GameState {
   const now = performance.now();
@@ -42,80 +81,55 @@ function createInitialState(calmMode = false, soundOn = true): GameState {
     score: 0,
     bestScore: readBestScore(),
     hearts: 3,
-    playerY: groundPlayerY,
-    playerVy: 0,
-    grounded: true,
-    obstacles: [],
-    collectibles: [],
+    lane: 0,
+    objects: [],
+    nextSpawnAt: now + 700,
+    tutorialIndex: 0,
     shieldActiveUntil: 0,
     shieldCooldownUntil: 0,
-    invulnerableUntil: 0,
     superUntil: 0,
-    nextObstacleAt: now + 1100,
-    nextCollectibleAt: now + 850,
-    nextPowerAt: now + 4200,
+    invulnerableUntil: 0,
+    startAt: now,
     messages: [],
     idSeed: 1,
   };
 }
 
-function obstacleFor(kind: ObstacleKind, id: number): Obstacle {
-  if (kind === "lightning") {
-    return {
-      id,
-      kind,
-      x: WORLD.width + 40,
-      y: WORLD.groundY - 228,
-      width: 70,
-      height: 78,
-    };
-  }
-
-  if (kind === "ice") {
-    return {
-      id,
-      kind,
-      x: WORLD.width + 40,
-      y: WORLD.groundY - 70,
-      width: 78,
-      height: 70,
-    };
-  }
-
-  return {
-    id,
-    kind,
-    x: WORLD.width + 40,
-    y: WORLD.groundY - 74,
-    width: 82,
-    height: 74,
-  };
+function isGood(kind: ObjectKind) {
+  return kind === "star" || kind === "heroBadge";
 }
 
-function collectibleFor(kind: CollectibleKind, id: number): Collectible {
-  return {
-    id,
-    kind,
-    x: WORLD.width + 40,
-    y: kind === "heroBadge" ? WORLD.groundY - 214 : WORLD.groundY - (132 + Math.random() * 132),
-    width: kind === "heroBadge" ? 56 : 42,
-    height: kind === "heroBadge" ? 56 : 42,
-  };
+function randomLane(): Lane {
+  return LANES[Math.floor(Math.random() * LANES.length)] ?? 0;
 }
 
-function randomObstacleKind(): ObstacleKind {
+function randomKind(): ObjectKind {
   const roll = Math.random();
-  if (roll < 0.42) return "meteor";
-  if (roll < 0.72) return "ice";
-  return "lightning";
+  if (roll < 0.42) return "star";
+  if (roll < 0.56) return "heroBadge";
+  if (roll < 0.80) return "meteor";
+  return "ice";
 }
 
-function logicalStyle(rect: Rect): React.CSSProperties {
+function spawnObject(state: GameState): GameState {
+  const planned = tutorialPlan[state.tutorialIndex];
+  const kind = planned?.kind ?? randomKind();
+  const lane = planned?.lane ?? randomLane();
+  const id = state.idSeed;
+
   return {
-    left: `${(rect.x / WORLD.width) * 100}%`,
-    top: `${(rect.y / WORLD.height) * 100}%`,
-    width: `${(rect.width / WORLD.width) * 100}%`,
-    height: `${(rect.height / WORLD.height) * 100}%`,
+    ...state,
+    idSeed: id + 1,
+    tutorialIndex: planned ? state.tutorialIndex + 1 : state.tutorialIndex,
+    objects: [
+      ...state.objects,
+      {
+        id,
+        kind,
+        lane,
+        progress: 0,
+      },
+    ],
   };
 }
 
@@ -127,11 +141,26 @@ function addMessage(state: GameState, text: string, now: number): GameState {
   };
 }
 
+function objectStyle(object: RunnerObject): React.CSSProperties {
+  const progress = Math.max(0, Math.min(1.08, object.progress));
+  const laneSpread = 6 + progress * 26;
+  const x = 50 + object.lane * laneSpread;
+  const y = 26 + progress * 58;
+  const size = 0.34 + progress * 1.08;
+  const opacity = 0.46 + progress * 0.54;
+
+  return {
+    left: `${x}%`,
+    top: `${y}%`,
+    transform: `translate(-50%, -50%) scale(${size})`,
+    opacity,
+  };
+}
+
 export function SuperZoosDash() {
   const [game, setGameState] = useState<GameState>(() => createInitialState());
   const gameRef = useRef(game);
   const lastFrameRef = useRef<number | null>(null);
-
   const audio = useMemo(() => createGameAudio(() => gameRef.current.soundOn), []);
 
   function setGame(next: GameState) {
@@ -141,9 +170,12 @@ export function SuperZoosDash() {
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
+    const previousTouchAction = document.body.style.touchAction;
     document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
     return () => {
       document.body.style.overflow = previousOverflow;
+      document.body.style.touchAction = previousTouchAction;
     };
   }, []);
 
@@ -153,80 +185,62 @@ export function SuperZoosDash() {
     function tick(now: number) {
       const previous = lastFrameRef.current ?? now;
       lastFrameRef.current = now;
-      const dt = Math.min(0.048, (now - previous) / 1000);
-      const state = gameRef.current;
+      const dt = Math.min(0.05, (now - previous) / 1000);
+      const current = gameRef.current;
 
-      if (state.screen !== "playing") {
+      if (current.screen !== "playing") {
         frame = requestAnimationFrame(tick);
         return;
       }
 
-      const tuning = state.calmMode ? MODE.calm : MODE.normal;
-      const speed = tuning.speed;
-      let next: GameState = { ...state };
+      const tuning = current.calmMode ? TUNING.calm : TUNING.normal;
+      let next: GameState = {
+        ...current,
+        score: current.score + tuning.scoreRate * dt,
+        objects: current.objects.map((object) => ({
+          ...object,
+          progress: object.progress + tuning.objectSpeed * dt,
+        })),
+        messages: current.messages.filter((message) => now - message.createdAt < 1500),
+      };
 
-      const nextVy = next.playerVy + PLAYER.gravity * dt;
-      const nextY = Math.min(groundPlayerY, next.playerY + nextVy * dt);
-      next.playerY = nextY;
-      next.playerVy = nextY >= groundPlayerY ? 0 : nextVy;
-      next.grounded = nextY >= groundPlayerY;
-      next.score += dt * (state.calmMode ? 5.5 : 7.5);
-
-      next.obstacles = next.obstacles
-        .map((obstacle) => ({ ...obstacle, x: obstacle.x - speed * dt }))
-        .filter((obstacle) => obstacle.x + obstacle.width > -80);
-
-      next.collectibles = next.collectibles
-        .map((collectible) => ({ ...collectible, x: collectible.x - speed * dt }))
-        .filter((collectible) => collectible.x + collectible.width > -80);
-
-      if (now >= next.nextObstacleAt) {
-        next = {
-          ...next,
-          idSeed: next.idSeed + 1,
-          obstacles: [...next.obstacles, obstacleFor(randomObstacleKind(), next.idSeed)],
-          nextObstacleAt: now + tuning.obstacleGapMs * (0.82 + Math.random() * 0.35),
-        };
+      if (now >= next.nextSpawnAt) {
+        next = spawnObject(next);
+        next.nextSpawnAt = now + tuning.spawnGapMs * (0.88 + Math.random() * 0.25);
       }
 
-      if (now >= next.nextCollectibleAt) {
-        next = {
-          ...next,
-          idSeed: next.idSeed + 1,
-          collectibles: [...next.collectibles, collectibleFor("star", next.idSeed)],
-          nextCollectibleAt: now + tuning.collectibleGapMs * (0.8 + Math.random() * 0.45),
-        };
-      }
+      const keptObjects: RunnerObject[] = [];
+      for (const object of next.objects) {
+        const atPlayer = object.progress >= 0.86;
+        const sameLane = object.lane === next.lane;
 
-      if (now >= next.nextPowerAt) {
-        next = {
-          ...next,
-          idSeed: next.idSeed + 1,
-          collectibles: [...next.collectibles, collectibleFor("heroBadge", next.idSeed)],
-          nextPowerAt: now + tuning.powerGapMs * (0.92 + Math.random() * 0.35),
-        };
-      }
+        if (!atPlayer) {
+          keptObjects.push(object);
+          continue;
+        }
 
-      const playerRect = shrinkRect(
-        {
-          x: WORLD.peterX,
-          y: next.playerY,
-          width: PLAYER.width,
-          height: PLAYER.height,
-        },
-        14,
-      );
+        if (!sameLane) {
+          if (object.progress < 1.12) keptObjects.push(object);
+          continue;
+        }
 
-      const keptObstacles: Obstacle[] = [];
-      for (const obstacle of next.obstacles) {
-        const obstacleRect = shrinkRect(obstacle, 8);
-        if (!intersects(playerRect, obstacleRect)) {
-          keptObstacles.push(obstacle);
+        if (isGood(object.kind)) {
+          if (object.kind === "heroBadge") {
+            next.score += 30;
+            next.superUntil = now + POWER.superDurationMs;
+            next.shieldActiveUntil = Math.max(next.shieldActiveUntil, now + POWER.shieldDurationMs);
+            next = addMessage(next, "Super Peter!", now);
+            audio.play("heroPower");
+          } else {
+            next.score += 12;
+            next = addMessage(next, "Star gem!", now);
+            audio.play("gem");
+          }
           continue;
         }
 
         if (now < next.shieldActiveUntil) {
-          next.score += 8;
+          next.score += 10;
           next = addMessage(next, "Shield clear!", now);
           audio.play("shield");
           continue;
@@ -234,34 +248,13 @@ export function SuperZoosDash() {
 
         if (now >= next.invulnerableUntil) {
           next.hearts -= 1;
-          next.invulnerableUntil = now + POWERS.postHitGraceMs;
-          next = addMessage(next, "Keep going, Peter!", now);
+          next.invulnerableUntil = now + POWER.graceAfterHitMs;
+          next = addMessage(next, "Move lanes or shield!", now);
           audio.play("bump");
         }
       }
-      next.obstacles = keptObstacles;
 
-      const keptCollectibles: Collectible[] = [];
-      for (const collectible of next.collectibles) {
-        if (!intersects(playerRect, shrinkRect(collectible, 4))) {
-          keptCollectibles.push(collectible);
-          continue;
-        }
-
-        if (collectible.kind === "heroBadge") {
-          next.score += 25;
-          next.superUntil = Math.max(next.superUntil, now + POWERS.heroBadgeSuperMs);
-          next.shieldActiveUntil = Math.max(next.shieldActiveUntil, now + POWERS.shieldDurationMs);
-          next = addMessage(next, "Super Peter!", now);
-          audio.play("heroPower");
-        } else {
-          next.score += 10;
-          audio.play("gem");
-        }
-      }
-      next.collectibles = keptCollectibles;
-
-      next.messages = next.messages.filter((message) => now - message.createdAt < 1350);
+      next.objects = keptObjects.filter((object) => object.progress < 1.18);
 
       if (next.hearts <= 0) {
         const finalScore = Math.max(0, Math.floor(next.score));
@@ -272,6 +265,7 @@ export function SuperZoosDash() {
           score: finalScore,
           bestScore,
           hearts: 0,
+          objects: [],
           messages: [],
         };
         audio.play("runEnd");
@@ -288,13 +282,13 @@ export function SuperZoosDash() {
   const now = performance.now();
   const peterMode: PeterMode = now < game.superUntil || now < game.shieldActiveUntil ? "super" : "normal";
   const shieldReady = game.screen === "playing" && now >= game.shieldCooldownUntil;
-  const shieldCoolingPercent = game.shieldCooldownUntil <= now ? 0 : Math.ceil(((game.shieldCooldownUntil - now) / POWERS.shieldCooldownMs) * 100);
+  const shieldCooldownSeconds = Math.max(0, Math.ceil((game.shieldCooldownUntil - now) / 1000));
 
   function startRun() {
     audio.unlock();
     lastFrameRef.current = null;
     const fresh = createInitialState(gameRef.current.calmMode, gameRef.current.soundOn);
-    setGame({ ...fresh, screen: "playing" });
+    setGame({ ...fresh, screen: "playing", startAt: performance.now() });
   }
 
   function pauseRun() {
@@ -317,32 +311,39 @@ export function SuperZoosDash() {
     setGame({ ...gameRef.current, soundOn: !gameRef.current.soundOn });
   }
 
-  function jump() {
-    const state = gameRef.current;
-    if (state.screen !== "playing" || !state.grounded) return;
-    setGame({ ...state, grounded: false, playerVy: PLAYER.jumpVelocity });
-    audio.play("jump");
+  function moveToLane(lane: Lane) {
+    const current = gameRef.current;
+    if (current.screen !== "playing") return;
+    if (current.lane !== lane) audio.play("jump");
+    setGame({ ...current, lane });
   }
 
   function activateShield() {
-    const state = gameRef.current;
+    const current = gameRef.current;
     const shieldNow = performance.now();
-    if (state.screen !== "playing" || shieldNow < state.shieldCooldownUntil) return;
+    if (current.screen !== "playing" || shieldNow < current.shieldCooldownUntil) return;
 
     let next: GameState = {
-      ...state,
-      shieldActiveUntil: shieldNow + POWERS.shieldDurationMs,
-      shieldCooldownUntil: shieldNow + POWERS.shieldCooldownMs,
-      superUntil: Math.max(state.superUntil, shieldNow + POWERS.shieldDurationMs),
+      ...current,
+      shieldActiveUntil: shieldNow + POWER.shieldDurationMs,
+      shieldCooldownUntil: shieldNow + POWER.shieldCooldownMs,
+      superUntil: Math.max(current.superUntil, shieldNow + POWER.shieldDurationMs),
     };
     next = addMessage(next, "Blue shield!", shieldNow);
     setGame(next);
     audio.play("shield");
   }
 
-  function handlePlayAreaPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+  function handleStagePointerDown(event: React.PointerEvent<HTMLDivElement>) {
     event.preventDefault();
-    jump();
+    if (gameRef.current.screen !== "playing") return;
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - bounds.left;
+    const third = bounds.width / 3;
+    if (x < third) moveToLane(-1);
+    else if (x > third * 2) moveToLane(1);
+    else moveToLane(0);
   }
 
   function stopControlEvent(event: React.PointerEvent<HTMLElement>) {
@@ -351,20 +352,20 @@ export function SuperZoosDash() {
 
   return (
     <main className="dash-app" aria-label="Super Zoos Dash game">
-      <section className="game-card">
-        <div className="game-header">
+      <section className="runner-shell">
+        <header className="top-bar">
           <div>
             <p className="eyebrow">Super Zoos</p>
             <h1>Super Zoos Dash</h1>
           </div>
-          <button className="pill-button ghost" type="button" onClick={toggleSound}>
+          <button className="small-button" type="button" onClick={toggleSound}>
             Sound: {game.soundOn ? "On" : "Off"}
           </button>
-        </div>
+        </header>
 
         <div className="hud" aria-live="polite">
-          <span>Score: {Math.floor(game.score)}</span>
-          <span>Best: {game.bestScore}</span>
+          <span>Score {Math.floor(game.score)}</span>
+          <span>Best {game.bestScore}</span>
           <span className="hearts" aria-label={`${game.hearts} hearts left`}>
             {Array.from({ length: 3 }, (_, index) => (
               <span key={index} className={index < game.hearts ? "heart full" : "heart"}>♥</span>
@@ -372,85 +373,136 @@ export function SuperZoosDash() {
           </span>
         </div>
 
-        <div className="stage-wrap">
-          <div className="stage" onPointerDown={handlePlayAreaPointerDown} role="application" aria-label="Tap the oval to jump">
-            <div className="sky-gradient" />
-            <div className="sun" />
-            <div className="school-hall" />
-            <div className="tree tree-one" />
-            <div className="tree tree-two" />
-            <div className="fence" />
-            <div className="oval" />
-            <div className="track-line line-one" />
-            <div className="track-line line-two" />
-
-            <PeterSprite mode={peterMode} y={game.playerY} isProtected={now < game.shieldActiveUntil} isBlinking={now < game.invulnerableUntil} />
-
-            {game.obstacles.map((obstacle) => (
-              <div key={obstacle.id} className={`obstacle ${obstacle.kind}`} style={logicalStyle(obstacle)} aria-hidden="true">
-                {obstacle.kind === "lightning" ? "ϟ" : obstacle.kind === "ice" ? "▰" : "●"}
-              </div>
-            ))}
-
-            {game.collectibles.map((collectible) => (
-              <div key={collectible.id} className={`collectible ${collectible.kind}`} style={logicalStyle(collectible)} aria-hidden="true">
-                {collectible.kind === "heroBadge" ? "P" : "★"}
-              </div>
-            ))}
-
-            {game.messages.map((message) => (
-              <div key={message.id} className="floating-message">
-                {message.text}
-              </div>
-            ))}
-
-            {game.screen === "start" && (
-              <Overlay title="Super Zoos Dash" subtitle="Run the oval. Dodge the meteor ripples. Use your shield!">
-                <button className="primary-button" type="button" onClick={startRun} onPointerDown={stopControlEvent}>
-                  Start Run
-                </button>
-                <button className="pill-button" type="button" onClick={toggleCalmMode} onPointerDown={stopControlEvent}>
-                  Calm Mode: {game.calmMode ? "On" : "Off"}
-                </button>
-                <p className="overlay-note">Peter starts normal. Grab a hero badge or use shield to become Super Peter.</p>
-              </Overlay>
-            )}
-
-            {game.screen === "paused" && (
-              <Overlay title="Paused" subtitle="Take a little breath. Peter is waiting safely.">
-                <button className="primary-button" type="button" onClick={resumeRun} onPointerDown={stopControlEvent}>
-                  Resume
-                </button>
-                <button className="pill-button" type="button" onClick={startRun} onPointerDown={stopControlEvent}>
-                  Restart
-                </button>
-              </Overlay>
-            )}
-
-            {game.screen === "ended" && (
-              <Overlay title="Great run, Super Peter!" subtitle={`Score ${Math.floor(game.score)} • Best ${game.bestScore}`}>
-                <button className="primary-button" type="button" onClick={startRun} onPointerDown={stopControlEvent}>
-                  Try Again
-                </button>
-              </Overlay>
-            )}
-
-            {game.screen === "playing" && (
-              <button className="pause-button" type="button" onClick={pauseRun} onPointerDown={stopControlEvent} aria-label="Pause run">
-                Pause
-              </button>
-            )}
+        <div className="stage" onPointerDown={handleStagePointerDown} role="application" aria-label="Tap left, middle, or right lane to move Peter">
+          <div className="sky" />
+          <div className="sun" />
+          <div className="hall" />
+          <div className="gumtree left" />
+          <div className="gumtree right" />
+          <div className="fence" />
+          <div className="oval-perspective">
+            <span className="lane-line left" />
+            <span className="lane-line right" />
+            <span className="horizon" />
           </div>
+          <div className="clarity-strip">
+            <span className="good">GET ★</span>
+            <span className="power">GET blue P</span>
+            <span className="bad">DODGE red danger</span>
+          </div>
+
+          {game.objects.map((object) => (
+            <RunnerObjectView key={object.id} object={object} />
+          ))}
+
+          <PeterRunner lane={game.lane} mode={peterMode} protectedNow={now < game.shieldActiveUntil} recovering={now < game.invulnerableUntil} />
+
+          {game.messages.map((message) => (
+            <div key={message.id} className="floating-message">
+              {message.text}
+            </div>
+          ))}
+
+          {game.screen === "playing" && (
+            <button className="pause-button" type="button" onClick={pauseRun} onPointerDown={stopControlEvent} aria-label="Pause run">
+              Pause
+            </button>
+          )}
+
+          {game.screen === "start" && (
+            <Overlay title="Super Zoos Dash" subtitle="Move lanes. Get stars and blue P. Dodge the red danger.">
+              <button className="primary-button" type="button" onClick={startRun} onPointerDown={stopControlEvent}>
+                Start Run
+              </button>
+              <button className="secondary-button" type="button" onClick={toggleCalmMode} onPointerDown={stopControlEvent}>
+                Calm Mode: {game.calmMode ? "On" : "Off"}
+              </button>
+            </Overlay>
+          )}
+
+          {game.screen === "paused" && (
+            <Overlay title="Paused" subtitle="Peter is safe. Ready when you are.">
+              <button className="primary-button" type="button" onClick={resumeRun} onPointerDown={stopControlEvent}>
+                Resume
+              </button>
+              <button className="secondary-button" type="button" onClick={startRun} onPointerDown={stopControlEvent}>
+                Restart
+              </button>
+            </Overlay>
+          )}
+
+          {game.screen === "ended" && (
+            <Overlay title="Great run, Super Peter!" subtitle={`Score ${Math.floor(game.score)} • Best ${game.bestScore}`}>
+              <button className="primary-button" type="button" onClick={startRun} onPointerDown={stopControlEvent}>
+                Try Again
+              </button>
+            </Overlay>
+          )}
         </div>
 
-        <div className="touch-controls" onPointerDown={stopControlEvent}>
-          <p>Tap the oval to jump</p>
+        <div className="lane-controls" onPointerDown={stopControlEvent}>
+          <button type="button" onClick={() => moveToLane(-1)} disabled={game.screen !== "playing"}>
+            Left
+          </button>
+          <button type="button" onClick={() => moveToLane(0)} disabled={game.screen !== "playing"}>
+            Middle
+          </button>
+          <button type="button" onClick={() => moveToLane(1)} disabled={game.screen !== "playing"}>
+            Right
+          </button>
           <button className="shield-button" type="button" disabled={!shieldReady} onClick={activateShield}>
-            {shieldReady ? "Shield" : `Shield ${shieldCoolingPercent}%`}
+            {shieldReady ? "Shield" : `Shield ${shieldCooldownSeconds}s`}
           </button>
         </div>
       </section>
     </main>
+  );
+}
+
+function RunnerObjectView({ object }: { object: RunnerObject }) {
+  const good = isGood(object.kind);
+  const label = object.kind === "heroBadge" ? "POWER" : good ? "GET" : "DODGE";
+  const symbol = object.kind === "star" ? "★" : object.kind === "heroBadge" ? "P" : object.kind === "meteor" ? "●" : "▰";
+
+  return (
+    <div className={`runner-object ${object.kind} ${good ? "collect" : "danger"}`} style={objectStyle(object)} aria-hidden="true">
+      <span className="object-symbol">{symbol}</span>
+      <span className="object-label">{label}</span>
+    </div>
+  );
+}
+
+function PeterRunner({ lane, mode, protectedNow, recovering }: { lane: Lane; mode: PeterMode; protectedNow: boolean; recovering: boolean }) {
+  const laneOffset = lane * 24;
+
+  return (
+    <div
+      className={`peter-runner ${mode} ${protectedNow ? "shielded" : ""} ${recovering ? "recovering" : ""}`}
+      style={{ transform: `translateX(calc(-50% + ${laneOffset}%))` }}
+      aria-label={mode === "super" ? "Super Peter" : "Peter"}
+    >
+      <div className="peter-shadow" />
+      <div className="peter-body-art" aria-hidden="true">
+        <div className="cape" />
+        <div className="hair hair-one" />
+        <div className="hair hair-two" />
+        <div className="ear ear-left" />
+        <div className="ear ear-right" />
+        <div className="head">
+          <span className="eye left" />
+          <span className="eye right" />
+          <span className="smile" />
+        </div>
+        <div className="trunk" />
+        <div className="torso">
+          <span>{mode === "super" ? "P" : ""}</span>
+        </div>
+        <div className="arm arm-left" />
+        <div className="arm arm-right" />
+        <div className="leg leg-left" />
+        <div className="leg leg-right" />
+      </div>
+    </div>
   );
 }
 
@@ -460,40 +512,13 @@ function Overlay({ title, subtitle, children }: { title: string; subtitle: strin
       <div className="overlay-panel">
         <h2>{title}</h2>
         <p>{subtitle}</p>
+        <div className="legend-row" aria-hidden="true">
+          <span className="legend-good">★ GET</span>
+          <span className="legend-power">P POWER</span>
+          <span className="legend-bad">RED = DODGE</span>
+        </div>
         <div className="overlay-actions">{children}</div>
       </div>
-    </div>
-  );
-}
-
-function PeterSprite({ mode, y, isProtected, isBlinking }: { mode: PeterMode; y: number; isProtected: boolean; isBlinking: boolean }) {
-  const src = mode === "super" ? characterAssetSlots.superPeterSide : characterAssetSlots.peterSide;
-  const rect = { x: WORLD.peterX, y, width: PLAYER.width, height: PLAYER.height };
-
-  return (
-    <div
-      className={`peter-sprite ${mode} ${isProtected ? "protected" : ""} ${isBlinking ? "soft-blink" : ""}`}
-      style={logicalStyle(rect)}
-      aria-label={mode === "super" ? "Super Peter" : "Peter"}
-    >
-      {src ? <img src={src} alt="" draggable={false} /> : <PeterPlaceholder mode={mode} />}
-    </div>
-  );
-}
-
-function PeterPlaceholder({ mode }: { mode: PeterMode }) {
-  return (
-    <div className={`peter-placeholder ${mode}`} aria-hidden="true">
-      <div className="cape" />
-      <div className="ear left" />
-      <div className="ear right" />
-      <div className="head" />
-      <div className="trunk" />
-      <div className="body">
-        <span>{mode === "super" ? "P" : ""}</span>
-      </div>
-      <div className="leg leg-one" />
-      <div className="leg leg-two" />
     </div>
   );
 }
