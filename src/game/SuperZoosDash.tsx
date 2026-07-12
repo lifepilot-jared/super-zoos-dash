@@ -74,7 +74,7 @@ type GestureStart = {
 };
 
 const LANES: Lane[] = [-1, 0, 1];
-const VERSION = "v0.3-school-adventure";
+const VERSION = "v0.4-real-art";
 const BASE_PATH = typeof window !== "undefined" && window.location.pathname.startsWith("/super-zoos-dash") ? "/super-zoos-dash/" : "/";
 
 function assetPath(path: string) {
@@ -261,12 +261,33 @@ function chooseKindForElapsed(elapsedSeconds: number): ObjectKind {
     return "trafficCone";
   }
 
-  if (roll < 0.46) return "star";
-  if (roll < 0.6) return "heroBadge";
-  if (roll < 0.72) return "backpack";
-  if (roll < 0.82) return "books";
-  if (roll < 0.9) return "bench";
-  if (roll < 0.97) return "trafficCone";
+  // Post-52s: escalating difficulty with more obstacles
+  if (elapsedSeconds < 75) {
+    if (roll < 0.4) return "star";
+    if (roll < 0.52) return "heroBadge";
+    if (roll < 0.68) return "backpack";
+    if (roll < 0.82) return "books";
+    if (roll < 0.92) return "bench";
+    return "trafficCone";
+  }
+
+  if (elapsedSeconds < 95) {
+    if (roll < 0.34) return "star";
+    if (roll < 0.46) return "heroBadge";
+    if (roll < 0.62) return "backpack";
+    if (roll < 0.76) return "books";
+    if (roll < 0.87) return "bench";
+    if (roll < 0.96) return "trafficCone";
+    return "basketball";
+  }
+
+  // 95s+: intense difficulty
+  if (roll < 0.28) return "star";
+  if (roll < 0.38) return "heroBadge";
+  if (roll < 0.55) return "backpack";
+  if (roll < 0.7) return "books";
+  if (roll < 0.83) return "bench";
+  if (roll < 0.92) return "trafficCone";
   return "basketball";
 }
 
@@ -421,7 +442,9 @@ export function SuperZoosDash() {
       if (now >= next.nextSpawnAt) {
         next = spawnObject(next, now);
         const earlySafetyMultiplier = elapsedSeconds < 30 ? 1.32 : elapsedSeconds < 60 ? 1.16 : 1;
-        next.nextSpawnAt = now + tuning.spawnGapMs * earlySafetyMultiplier * (1 + Math.random() * 0.36);
+        // Post-52s: gradually increase spawn rate (+5% every 5s after 52s)
+        const postEliteBoost = Math.max(1, (elapsedSeconds - 52) / 100);
+        next.nextSpawnAt = now + tuning.spawnGapMs * earlySafetyMultiplier * postEliteBoost * (1 + Math.random() * 0.36);
       }
 
       const keptObjects: RunnerObject[] = [];
@@ -623,16 +646,20 @@ export function SuperZoosDash() {
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
 
-    if (dy < -24 && absY > absX * 0.7) {
+    // Gesture tuning: larger deadzone for better iPad feel
+    // Vertical swipe: 48px minimum, must be more vertical than horizontal
+    if (dy < -48 && absY > absX * 0.75) {
       jump();
       return;
     }
 
-    if (absX > 24 && absX > absY * 0.58) {
+    // Horizontal swipe: 56px minimum, must be more horizontal than vertical
+    if (absX > 56 && absX > absY * 0.65) {
       stepLane(dx > 0 ? 1 : -1);
       return;
     }
 
+    // Tap in thirds: left, middle, right
     const x = event.clientX - bounds.left;
     const third = bounds.width / 3;
     if (x < third) moveToLane(-1);
