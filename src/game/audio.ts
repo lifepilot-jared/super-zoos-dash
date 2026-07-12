@@ -1,7 +1,5 @@
 import type { GameSound } from "./gameTypes";
 
-// Optional uploaded audio files. The built-in Web Audio sounds below mean the game
-// still has polished feedback even before custom voice clips are added.
 const SOUND_PATHS: Partial<Record<GameSound, string>> = {
   jump: "/super-zoos-dash/sounds/jump.mp3",
   gem: "/super-zoos-dash/sounds/gem.mp3",
@@ -28,12 +26,24 @@ export function createGameAudio(isEnabled: () => boolean): GameAudioController {
   let unlocked = false;
   let context: AudioContext | null = null;
 
-  function ensureContext() {
+  function getContext() {
     const Constructor = getAudioContextConstructor();
     if (!Constructor) return null;
     context ??= new Constructor();
-    if (context.state === "suspended") void context.resume();
     return context;
+  }
+
+  async function ensureRunningContext() {
+    const ctx = getContext();
+    if (!ctx) return null;
+    if (ctx.state === "suspended") {
+      try {
+        await ctx.resume();
+      } catch {
+        return null;
+      }
+    }
+    return ctx;
   }
 
   function tone(
@@ -69,7 +79,7 @@ export function createGameAudio(isEnabled: () => boolean): GameAudioController {
     const gain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
     filter.type = "lowpass";
-    filter.frequency.value = 1400;
+    filter.frequency.value = 1500;
     gain.gain.setValueAtTime(volume, start);
     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
     source.buffer = buffer;
@@ -77,49 +87,40 @@ export function createGameAudio(isEnabled: () => boolean): GameAudioController {
     source.start(start);
   }
 
-  function synthesize(sound: GameSound) {
-    const ctx = ensureContext();
-    if (!ctx) return;
-    const now = ctx.currentTime + 0.008;
-
+  function synthesize(ctx: AudioContext, sound: GameSound) {
+    const now = ctx.currentTime + 0.012;
     switch (sound) {
       case "jump":
-        // Fast springy jump + tiny landing pop.
-        tone(ctx, 330, now, 0.13, 0.16, "sine", 690);
-        tone(ctx, 520, now + 0.055, 0.11, 0.09, "triangle", 850);
-        noise(ctx, now + 0.15, 0.055, 0.035);
+        tone(ctx, 300, now, 0.12, 0.22, "sine", 760);
+        tone(ctx, 520, now + 0.045, 0.11, 0.12, "triangle", 980);
+        noise(ctx, now + 0.14, 0.05, 0.045);
         break;
       case "gem":
-        // Cute elephant-like celebratory trumpet plus sparkle notes.
-        tone(ctx, 235, now, 0.24, 0.14, "sawtooth", 390);
-        tone(ctx, 470, now + 0.055, 0.19, 0.065, "sine", 610);
-        tone(ctx, 790, now + 0.18, 0.16, 0.055, "triangle", 1040);
-        tone(ctx, 1110, now + 0.27, 0.13, 0.04, "sine", 1380);
+        tone(ctx, 210, now, 0.28, 0.22, "sawtooth", 430);
+        tone(ctx, 430, now + 0.04, 0.22, 0.11, "sine", 690);
+        tone(ctx, 820, now + 0.18, 0.16, 0.08, "triangle", 1200);
+        tone(ctx, 1180, now + 0.29, 0.14, 0.06, "sine", 1500);
         break;
       case "heroPower":
-        // Arcade boost/upgrade sweep.
-        tone(ctx, 180, now, 0.42, 0.16, "sawtooth", 920);
-        tone(ctx, 360, now + 0.08, 0.34, 0.11, "square", 1280);
-        tone(ctx, 760, now + 0.26, 0.26, 0.08, "triangle", 1540);
-        noise(ctx, now, 0.34, 0.035);
+        tone(ctx, 160, now, 0.46, 0.22, "sawtooth", 980);
+        tone(ctx, 350, now + 0.07, 0.36, 0.14, "square", 1320);
+        tone(ctx, 780, now + 0.24, 0.28, 0.10, "triangle", 1700);
+        noise(ctx, now, 0.36, 0.045);
         break;
       case "shield":
-        // Soft blue shield shimmer, deliberately non-harsh.
-        tone(ctx, 410, now, 0.38, 0.09, "sine", 620);
-        tone(ctx, 610, now + 0.04, 0.36, 0.07, "triangle", 910);
-        tone(ctx, 920, now + 0.12, 0.28, 0.045, "sine", 1160);
+        tone(ctx, 390, now, 0.42, 0.14, "sine", 650);
+        tone(ctx, 620, now + 0.04, 0.38, 0.10, "triangle", 980);
+        tone(ctx, 980, now + 0.12, 0.30, 0.07, "sine", 1260);
         break;
       case "bump":
-        // Gentle thud rather than a punishing fail sound.
-        tone(ctx, 145, now, 0.17, 0.16, "sine", 72);
-        noise(ctx, now, 0.12, 0.045);
+        tone(ctx, 150, now, 0.18, 0.20, "sine", 70);
+        noise(ctx, now, 0.13, 0.06);
         break;
       case "runEnd":
-        // Encouraging finish jingle.
-        tone(ctx, 392, now, 0.18, 0.08, "triangle");
-        tone(ctx, 523, now + 0.15, 0.19, 0.085, "triangle");
-        tone(ctx, 659, now + 0.31, 0.24, 0.09, "triangle");
-        tone(ctx, 784, now + 0.49, 0.3, 0.075, "sine");
+        tone(ctx, 392, now, 0.18, 0.11, "triangle");
+        tone(ctx, 523, now + 0.15, 0.20, 0.12, "triangle");
+        tone(ctx, 659, now + 0.31, 0.25, 0.13, "triangle");
+        tone(ctx, 784, now + 0.49, 0.32, 0.11, "sine");
         break;
     }
   }
@@ -131,7 +132,7 @@ export function createGameAudio(isEnabled: () => boolean): GameAudioController {
     if (cached) return cached;
     const audio = new Audio(path);
     audio.preload = "auto";
-    audio.volume = sound === "bump" ? 0.38 : 0.55;
+    audio.volume = sound === "bump" ? 0.45 : 0.75;
     cache.set(sound, audio);
     return audio;
   }
@@ -139,21 +140,28 @@ export function createGameAudio(isEnabled: () => boolean): GameAudioController {
   return {
     unlock() {
       unlocked = true;
-      ensureContext();
+      void ensureRunningContext().then((ctx) => {
+        if (!ctx) return;
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.value = 0.0001;
+        oscillator.connect(gain).connect(ctx.destination);
+        oscillator.start();
+        oscillator.stop(ctx.currentTime + 0.02);
+      });
     },
     play(sound) {
       if (!unlocked || !isEnabled()) return;
+      void ensureRunningContext().then((ctx) => {
+        if (!ctx || !isEnabled()) return;
+        synthesize(ctx, sound);
+      });
 
-      // Built-in sound is immediate and reliable on iPad.
-      synthesize(sound);
-
-      // Custom uploaded clips can layer over/replace the fallback later. We only
-      // attempt them when the browser has already cached enough data.
       const audio = getUploadedAudio(sound);
-      if (!audio || audio.readyState < 2) return;
+      if (!audio) return;
       audio.currentTime = 0;
       void audio.play().catch(() => {
-        // iPad Safari may still block an individual file. The synth sound remains.
+        // Missing custom clips or iPad autoplay restrictions must never break gameplay.
       });
     },
   };
