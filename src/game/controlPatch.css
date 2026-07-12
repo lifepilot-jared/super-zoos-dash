@@ -1,18 +1,20 @@
 .peter-runner {
-  transition: left 190ms ease-out, transform 190ms ease-out, filter 160ms ease !important;
+  transition: left 170ms ease-out, transform 170ms ease-out, filter 160ms ease !important;
+  will-change: left;
 }
 
 .peter-runner .peter-body-art {
-  transition: transform 170ms ease-out;
+  transition: transform 160ms ease-out;
+  will-change: transform;
 }
 
 .peter-runner.jumping .peter-body-art {
-  transform: translateY(-46px) scale(0.98);
+  transform: translateY(-96px) scale(1.02);
 }
 
 .peter-runner.jumping .peter-shadow {
-  opacity: 0.32;
-  transform: translateX(-50%) scale(0.72);
+  opacity: 0.24;
+  transform: translateX(-50%) scale(0.58);
 }
 
 .clarity-strip .jump,
@@ -40,8 +42,14 @@
   color: #0f5da8;
 }
 
+@media (orientation: landscape) {
+  .peter-runner.jumping .peter-body-art {
+    transform: translateY(-82px) scale(1.02);
+  }
+}
+
 @media (max-width: 620px) {
   .peter-runner.jumping .peter-body-art {
-    transform: translateY(-36px) scale(0.98);
+    transform: translateY(-62px) scale(1.02);
   }
 }
