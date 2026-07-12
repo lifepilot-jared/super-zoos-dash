@@ -1,34 +1,106 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 260" role="img" aria-labelledby="title desc">
-  <title id="title">Judy</title>
-  <desc id="desc">A sweet plush rabbit Super Zoos hero character.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 280" role="img" aria-labelledby="title">
+  <title id="title">Judy - Rabbit Hero</title>
   <defs>
-    <filter id="softShadow" x="-30%" y="-20%" width="160%" height="150%">
-      <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#24506d" flood-opacity="0.2"/>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000000" flood-opacity="0.22"/>
     </filter>
-    <linearGradient id="suitPink" x1="0" x2="0" y1="0" y2="1">
-      <stop stop-color="#ff9ed1"/>
-      <stop offset="1" stop-color="#e23e8d"/>
+    <linearGradient id="suitGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff5eb3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d61976;stop-opacity:1" />
     </linearGradient>
   </defs>
-  <ellipse cx="120" cy="238" rx="58" ry="12" fill="#184b35" opacity="0.16"/>
-  <g filter="url(#softShadow)">
-    <path d="M83 93C54 41 62 9 82 7c20-2 28 38 25 85z" fill="#f7f2ee"/>
-    <path d="M157 93c29-52 21-84 1-86-20-2-28 38-25 85z" fill="#f7f2ee"/>
-    <path d="M84 79C70 42 74 19 84 18c12-1 18 28 15 63z" fill="#ffc7d9" opacity="0.9"/>
-    <path d="M156 79c14-37 10-60 0-61-12-1-18 28-15 63z" fill="#ffc7d9" opacity="0.9"/>
-    <ellipse cx="120" cy="101" rx="58" ry="52" fill="#fff8f2"/>
-    <path d="M141 50c12-12 31-6 31 9 0 21-31 22-51 3 5-2 14-6 20-12z" fill="#ff78b9"/>
-    <circle cx="100" cy="100" r="6" fill="#102433"/>
-    <circle cx="140" cy="100" r="6" fill="#102433"/>
-    <ellipse cx="120" cy="115" rx="8" ry="6" fill="#ef7ea9"/>
-    <path d="M105 124c10 10 20 10 30 0" fill="none" stroke="#6d5a55" stroke-width="5" stroke-linecap="round"/>
-    <rect x="72" y="142" width="96" height="74" rx="30" fill="url(#suitPink)"/>
-    <circle cx="120" cy="175" r="24" fill="#fff5ba" stroke="#fff" stroke-width="6"/>
-    <text x="120" y="184" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="900" fill="#d52b83">J</text>
-    <rect x="47" y="151" width="27" height="61" rx="14" fill="#fff8f2" transform="rotate(15 60 181)"/>
-    <rect x="166" y="151" width="27" height="61" rx="14" fill="#fff8f2" transform="rotate(-15 180 181)"/>
-    <rect x="84" y="208" width="28" height="34" rx="12" fill="#c91d75"/>
-    <rect x="128" y="208" width="28" height="34" rx="12" fill="#c91d75"/>
-    <path d="M154 148c34 13 49 38 47 67-31-8-54-22-73-47z" fill="#ff73b5" opacity="0.85"/>
+  
+  <!-- Shadow on ground -->
+  <ellipse cx="120" cy="260" rx="58" ry="12" fill="#000000" opacity="0.16"/>
+  
+  <g filter="url(#shadow)">
+    <!-- LONG EARS -->
+    <!-- Left ear outer -->
+    <ellipse cx="55" cy="28" rx="14" ry="46" fill="#f5e8e8" transform="rotate(-18 55 28)"/>
+    <!-- Left ear inner (pink) -->
+    <ellipse cx="57" cy="35" rx="8" ry="38" fill="#f5b3d4" transform="rotate(-18 57 35)"/>
+    
+    <!-- Right ear outer -->
+    <ellipse cx="185" cy="28" rx="14" ry="46" fill="#f5e8e8" transform="rotate(18 185 28)"/>
+    <!-- Right ear inner (pink) -->
+    <ellipse cx="183" cy="35" rx="8" ry="38" fill="#f5b3d4" transform="rotate(18 183 35)"/>
+    
+    <!-- HEAD (white/pink plush) -->
+    <ellipse cx="120" cy="98" rx="50" ry="52" fill="#f5f5f5"/>
+    
+    <!-- HAIR/BANGS (brown) -->
+    <circle cx="95" cy="70" r="7" fill="#8a6240"/>
+    <circle cx="107" cy="62" r="8" fill="#7a5230"/>
+    <circle cx="120" cy="60" r="9" fill="#8a6240"/>
+    <circle cx="133" cy="62" r="8" fill="#7a5230"/>
+    <circle cx="145" cy="70" r="7" fill="#8a6240"/>
+    
+    <!-- FACE (white) -->
+    <ellipse cx="120" cy="112" rx="38" ry="36" fill="#fefefe"/>
+    
+    <!-- EYES -->
+    <circle cx="100" cy="95" r="11" fill="#ffffff"/>
+    <circle cx="140" cy="95" r="11" fill="#ffffff"/>
+    <circle cx="102" cy="98" r="7" fill="#1a1a1a"/>
+    <circle cx="142" cy="98" r="7" fill="#1a1a1a"/>
+    <circle cx="104" cy="94" r="2.5" fill="#ffffff"/>
+    <circle cx="144" cy="94" r="2.5" fill="#ffffff"/>
+    
+    <!-- NOSE (pink) -->
+    <ellipse cx="120" cy="115" rx="6" ry="5" fill="#ff94c6"/>
+    
+    <!-- SMILE/MOUTH -->
+    <path d="M 110 128 Q 120 136 130 128" fill="none" stroke="#d9a5b3" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- WHISKERS -->
+    <line x1="75" y1="110" x2="55" y2="108" stroke="#d9a5b3" stroke-width="2" stroke-linecap="round"/>
+    <line x1="165" y1="110" x2="185" y2="108" stroke="#d9a5b3" stroke-width="2" stroke-linecap="round"/>
+    
+    <!-- CHEEKS (rosy pink) -->
+    <circle cx="70" cy="115" r="11" fill="#ffc0e0" opacity="0.7"/>
+    <circle cx="170" cy="115" r="11" fill="#ffc0e0" opacity="0.7"/>
+    
+    <!-- BODY (hot pink suit) -->
+    <rect x="66" y="148" width="108" height="88" rx="26" fill="url(#suitGrad)"/>
+    
+    <!-- CHEST EMBLEM (J heart) -->
+    <g transform="translate(120, 172)">
+      <!-- Heart background -->
+      <ellipse cx="0" cy="0" rx="28" ry="30" fill="#ffd966" stroke="#ffffff" stroke-width="3"/>
+      <!-- J letter -->
+      <text x="0" y="10" font-family="Arial, sans-serif" font-size="40" font-weight="900" fill="#d61976" text-anchor="middle">J</text>
+      <!-- Small heart accent -->
+      <path d="M -8 -18 L -8 -18 L -12 -14 Q -14 -12 -14 -10 Q -14 -8 -12 -8 Q -10 -8 -8 -10 Q -6 -8 -4 -8 Q -2 -8 -2 -10 Q -2 -12 -4 -14 Z" fill="#ff5eb3"/>
+    </g>
+    
+    <!-- GOLD BELT -->
+    <rect x="70" y="205" width="100" height="6" rx="3" fill="#ffd966"/>
+    <circle cx="85" cy="208" r="3" fill="#ffffff"/>
+    <circle cx="120" cy="208" r="3" fill="#ffffff"/>
+    <circle cx="155" cy="208" r="3" fill="#ffffff"/>
+    
+    <!-- LEFT ARM -->
+    <rect x="42" y="162" width="24" height="70" rx="12" fill="#f5f5f5" transform="rotate(-18 54 162)"/>
+    
+    <!-- RIGHT ARM -->
+    <rect x="174" y="162" width="24" height="70" rx="12" fill="#f5f5f5" transform="rotate(18 186 162)"/>
+    
+    <!-- LEFT LEG -->
+    <rect x="80" y="230" width="28" height="46" rx="14" fill="#c6187d"/>
+    
+    <!-- RIGHT LEG -->
+    <rect x="132" y="230" width="28" height="46" rx="14" fill="#c6187d"/>
+    
+    <!-- LEFT SHOE (hot pink) -->
+    <ellipse cx="94" cy="268" rx="18" ry="10" fill="#c6187d"/>
+    <ellipse cx="94" cy="265" rx="16" ry="6" fill="#ff5eb3"/>
+    
+    <!-- RIGHT SHOE (hot pink) -->
+    <ellipse cx="146" cy="268" rx="18" ry="10" fill="#c6187d"/>
+    <ellipse cx="146" cy="265" rx="16" ry="6" fill="#ff5eb3"/>
+    
+    <!-- TAIL (fluffy, white/pink) -->
+    <circle cx="175" cy="225" r="12" fill="#f5f5f5"/>
+    <circle cx="178" cy="220" r="10" fill="#ffc0e0" opacity="0.8"/>
   </g>
 </svg>
