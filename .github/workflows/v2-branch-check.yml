@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: super-zoos-v2-check
-  cancel-in-progress: true
+  group: super-zoos-v2-check-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
