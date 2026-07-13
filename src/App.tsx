@@ -10,7 +10,7 @@ import "./game/characterStatesV06.css";
 import "./game/livingSchoolV10.css";
 import "./game/livingSchoolV10Overrides.css";
 import "./game/livingSchoolV11.css";
-import "./game/livingSchoolV13.css";
+import "./game/chaseCameraV13.css";
 
 function createTrumpetWavUrl(): string {
   const sampleRate = 44_100;
@@ -79,11 +79,7 @@ export default function App() {
       audio.volume = 1;
       audio.preload = "auto";
       audio.setAttribute("playsinline", "true");
-      audio.addEventListener(
-        "ended",
-        () => setSoundStatus("Peter's trumpet played ✓"),
-        { once: true },
-      );
+      audio.addEventListener("ended", () => setSoundStatus("Peter's trumpet played ✓"), { once: true });
       await audio.play();
       setSoundStatus("Peter's trumpet is playing now");
     } catch (error) {
@@ -95,7 +91,7 @@ export default function App() {
   return (
     <>
       <div className="deployment-verification" role="status">
-        <strong>V1.3 CINEMATIC CHASE CAMERA</strong>
+        <strong>V1.4 CHARACTER ANIMATION FOUNDATION</strong>
         <button type="button" onClick={() => void testSound()}>Play Peter Trumpet</button>
         <span>{soundStatus}</span>
       </div>
