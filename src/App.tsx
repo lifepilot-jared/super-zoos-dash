@@ -10,6 +10,7 @@ import "./game/characterStatesV06.css";
 import "./game/livingSchoolV10.css";
 import "./game/livingSchoolV10Overrides.css";
 import "./game/livingSchoolV11.css";
+import "./game/livingSchoolV13.css";
 
 function createTrumpetWavUrl(): string {
   const sampleRate = 44_100;
@@ -94,7 +95,7 @@ export default function App() {
   return (
     <>
       <div className="deployment-verification" role="status">
-        <strong>V1.2 SYNCHRONIZED RUNNER MOTION</strong>
+        <strong>V1.3 CINEMATIC CHASE CAMERA</strong>
         <button type="button" onClick={() => void testSound()}>Play Peter Trumpet</button>
         <span>{soundStatus}</span>
       </div>
