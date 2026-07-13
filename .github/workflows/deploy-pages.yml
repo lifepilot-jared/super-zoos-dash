@@ -33,10 +33,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
-      - name: Install locked dependencies
-        run: npm ci
+      - name: Install dependencies
+        run: npm install
 
       - name: Run TypeScript and Vite production build
         run: npm run build
