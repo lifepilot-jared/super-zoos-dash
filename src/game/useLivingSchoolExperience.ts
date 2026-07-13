@@ -14,6 +14,14 @@ type PropKind =
   | "shade-sail"
   | "drink-fountain";
 
+type MotionState = {
+  distance: number;
+  lastTime: number;
+  zone: SchoolZone;
+};
+
+const motionStates = new WeakMap<Element, MotionState>();
+
 function makeElement(className: string, text?: string): HTMLDivElement {
   const element = document.createElement("div");
   element.className = className;
@@ -61,9 +69,8 @@ function addPassingRoute(layer: HTMLElement, side: Side): void {
       `route-prop-v10 prop-${kind}-v10 route-${side}-v10`,
       propLabel(kind, side, index),
     );
-    prop.style.setProperty("--route-delay", `${index * -0.52}s`);
-    prop.style.setProperty("--route-duration", `${6.1 + (index % 4) * 0.18}s`);
-    prop.style.setProperty("--route-depth", `${0.92 + (index % 3) * 0.05}`);
+    prop.dataset.routeSide = side;
+    prop.dataset.routePhase = String(index / sequence.length + (side === "right" ? 0.04 : 0));
     layer.append(prop);
   });
 }
@@ -126,8 +133,9 @@ function buildWorld(stage: Element): void {
 
   world.append(sky, far, mid, ground, route, eventLayer);
   stage.prepend(world);
-  stage.classList.add("school-route-v10-active", "school-zone-v11-oval");
+  stage.classList.add("school-route-v10-active", "school-zone-v11-oval", "school-motion-v12");
   stage.setAttribute("data-school-zone", "oval");
+  motionStates.set(stage, { distance: 0, lastTime: performance.now(), zone: "oval" });
 }
 
 function applyZone(stage: Element, zone: SchoolZone): void {
@@ -143,35 +151,109 @@ function applyZone(stage: Element, zone: SchoolZone): void {
       playground: "PLAYGROUND RUN",
       canteen: "CANTEEN & HALL",
     }[zone];
+    label.classList.remove("zone-label-show-v12");
+    void label.offsetWidth;
+    label.classList.add("zone-label-show-v12");
   }
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function readPlayerLane(stage: Element): number {
+  const runner = stage.querySelector<HTMLElement>(".hero-runner");
+  const left = Number.parseFloat(runner?.style.left ?? "50");
+  return clamp((left - 50) / 25.5, -1, 1);
+}
+
+function updateStageMotion(stage: Element, now: number): void {
+  const state = motionStates.get(stage) ?? { distance: 0, lastTime: now, zone: "oval" as SchoolZone };
+  const playing = Boolean(stage.querySelector(".pause-button")) && !stage.querySelector(".overlay");
+  const deltaSeconds = Math.min(0.05, Math.max(0, (now - state.lastTime) / 1000));
+  state.lastTime = now;
+
+  stage.classList.toggle("school-motion-running-v12", playing);
+
+  if (playing) {
+    // Distance is the single source of truth for scenery, route zones and ground flow.
+    state.distance += deltaSeconds * 0.235;
+  }
+
+  const zoneIndex = Math.floor(state.distance / 2.15) % ZONES.length;
+  const zone = ZONES[zoneIndex];
+  if (zone !== state.zone) {
+    state.zone = zone;
+    applyZone(stage, zone);
+  }
+
+  const world = stage.querySelector<HTMLElement>(`.${WORLD_CLASS}`);
+  const route = stage.querySelector<HTMLElement>(".campus-route-v10");
+  const ground = stage.querySelector<HTMLElement>(".campus-ground-v10");
+  const lane = readPlayerLane(stage);
+
+  const zoneCamera = {
+    oval: { x: 0, rotate: 0, scale: 1 },
+    court: { x: 2.7, rotate: 0.72, scale: 1.018 },
+    playground: { x: -2.7, rotate: -0.72, scale: 1.018 },
+    canteen: { x: 0, rotate: 0, scale: 1.03 },
+  }[zone];
+
+  if (world) {
+    const laneBank = lane * -1.15;
+    world.style.transform = `translateX(${zoneCamera.x + laneBank}%) rotateZ(${zoneCamera.rotate - lane * 0.22}deg) scale(${zoneCamera.scale})`;
+  }
+  if (route) route.style.transform = `translateX(${-lane * 0.8}%)`;
+  if (ground) ground.style.transform = `translateX(${-lane * 0.45}%) skewX(${lane * 0.35}deg)`;
+
+  stage.querySelectorAll<HTMLElement>(".route-prop-v10").forEach((prop) => {
+    const basePhase = Number.parseFloat(prop.dataset.routePhase ?? "0");
+    const phase = (state.distance + basePhase) % 1;
+    const side = prop.dataset.routeSide === "left" ? -1 : 1;
+    const approach = Math.pow(phase, 1.58);
+    const x = 50 + side * (7 + approach * 51);
+    const y = 38 + Math.pow(phase, 1.72) * 65;
+    const scale = 0.15 + Math.pow(phase, 1.78) * 2.95;
+    const fadeIn = clamp(phase / 0.08, 0, 1);
+    const fadeOut = clamp((1 - phase) / 0.13, 0, 1);
+
+    prop.style.left = `${x}%`;
+    prop.style.top = `${y}%`;
+    prop.style.opacity = String(Math.min(fadeIn, fadeOut));
+    prop.style.transform = `translate(-50%, -100%) scale(${scale})`;
+    prop.style.zIndex = String(Math.round(6 + phase * 20));
+  });
+
+  const groundOffset = Math.round((state.distance * 980) % 760);
+  stage.querySelectorAll<HTMLElement>(".oval-lane-grid-v10, .oval-edge-v10, .foreground-blur-v10").forEach((element) => {
+    element.style.backgroundPositionY = `${groundOffset}px`;
+  });
+
+  const hasWinnie = Boolean(stage.querySelector(".doctor-winnie-cameo"));
+  stage.classList.toggle("winnie-event-active-v10", hasWinnie);
+  motionStates.set(stage, state);
 }
 
 export function useLivingSchoolExperience(): void {
   useEffect(() => {
-    let zoneIndex = 0;
-
     function refresh(): void {
-      document.querySelectorAll(".school-stage").forEach((stage) => {
-        buildWorld(stage);
-        const hasWinnie = Boolean(stage.querySelector(".doctor-winnie-cameo"));
-        stage.classList.toggle("winnie-event-active-v10", hasWinnie);
-      });
+      document.querySelectorAll(".school-stage").forEach((stage) => buildWorld(stage));
     }
 
     refresh();
     const observer = new MutationObserver(refresh);
     observer.observe(document.body, { childList: true, subtree: true });
 
-    const zoneTimer = window.setInterval(() => {
-      zoneIndex = (zoneIndex + 1) % ZONES.length;
-      document.querySelectorAll(".school-stage.school-route-v10-active").forEach((stage) => {
-        applyZone(stage, ZONES[zoneIndex]);
-      });
-    }, 9000);
+    let frame = 0;
+    function animate(now: number): void {
+      document.querySelectorAll(".school-stage.school-route-v10-active").forEach((stage) => updateStageMotion(stage, now));
+      frame = requestAnimationFrame(animate);
+    }
+    frame = requestAnimationFrame(animate);
 
     return () => {
       observer.disconnect();
-      window.clearInterval(zoneTimer);
+      cancelAnimationFrame(frame);
     };
   }, []);
 }
