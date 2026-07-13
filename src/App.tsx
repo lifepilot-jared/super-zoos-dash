@@ -8,6 +8,7 @@ import "./game/professionalUpgrade.css";
 import "./game/audioMotionVerification.css";
 import "./game/characterStatesV06.css";
 import "./game/livingSchoolV10.css";
+import "./game/livingSchoolV10Overrides.css";
 
 function createTrumpetWavUrl(): string {
   const sampleRate = 44_100;
