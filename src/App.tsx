@@ -10,6 +10,7 @@ import "./game/livingSchoolV06.css";
 import "./game/characterStatesV06.css";
 import "./game/livingSchoolV07.css";
 import "./game/livingSchoolV08.css";
+import "./game/livingSchoolV09.css";
 
 function createTrumpetWavUrl(): string {
   const sampleRate = 44_100;
