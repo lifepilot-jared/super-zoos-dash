@@ -6,11 +6,8 @@ import "./game/startScreenFix.css";
 import "./game/schoolAdventurePass.css";
 import "./game/professionalUpgrade.css";
 import "./game/audioMotionVerification.css";
-import "./game/livingSchoolV06.css";
 import "./game/characterStatesV06.css";
-import "./game/livingSchoolV07.css";
-import "./game/livingSchoolV08.css";
-import "./game/livingSchoolV09.css";
+import "./game/livingSchoolV10.css";
 
 function createTrumpetWavUrl(): string {
   const sampleRate = 44_100;
@@ -59,7 +56,7 @@ function createTrumpetWavUrl(): string {
 }
 
 export default function App() {
-  const [soundStatus, setSoundStatus] = useState("Tap once to play a real WAV test");
+  const [soundStatus, setSoundStatus] = useState("Tap once to play Peter's trumpet");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
   useCharacterAssetBridge();
@@ -79,9 +76,13 @@ export default function App() {
       audio.volume = 1;
       audio.preload = "auto";
       audio.setAttribute("playsinline", "true");
-      audio.addEventListener("ended", () => setSoundStatus("WAV playback completed. Did you hear Peter's trumpet?"), { once: true });
+      audio.addEventListener(
+        "ended",
+        () => setSoundStatus("Peter's trumpet played ✓"),
+        { once: true },
+      );
       await audio.play();
-      setSoundStatus("WAV is playing now — raise media volume if silent");
+      setSoundStatus("Peter's trumpet is playing now");
     } catch (error) {
       const message = error instanceof Error ? error.name : "unknown error";
       setSoundStatus(`Audio play failed: ${message}`);
@@ -91,8 +92,8 @@ export default function App() {
   return (
     <>
       <div className="deployment-verification" role="status">
-        <strong>V0.9 FAST SCHOOL + WAV AUDIO</strong>
-        <button type="button" onClick={() => void testSound()}>Play Trumpet Test</button>
+        <strong>V1.0 AUSTRALIAN SCHOOL ROUTE</strong>
+        <button type="button" onClick={() => void testSound()}>Play Peter Trumpet</button>
         <span>{soundStatus}</span>
       </div>
       <SuperZoosDash />
