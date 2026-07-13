@@ -1,0 +1,37 @@
+name: Check Super Zoos Adventure V2
+
+on:
+  push:
+    branches:
+      - feature/super-zoos-adventure-v2
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: super-zoos-v2-check
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build V2 greybox
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout V2 branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: TypeScript and Vite build
+        run: npm run build
+
+      - name: Verify output
+        run: test -f dist/index.html
