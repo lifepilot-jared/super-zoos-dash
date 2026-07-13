@@ -2,7 +2,9 @@ name: Build and Deploy Super Zoos
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - feature/super-zoos-adventure-v2
   workflow_dispatch:
 
 env:
@@ -19,12 +21,20 @@ concurrency:
 
 jobs:
   build:
-    name: Build production game
+    name: Build classic and v2 preview
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: Checkout repository
+      - name: Checkout classic main
         uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Checkout v2 source
+        uses: actions/checkout@v4
+        with:
+          ref: feature/super-zoos-adventure-v2
+          path: v2-source
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -34,22 +44,42 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
-        run: npm install
+      - name: Build classic game
+        run: |
+          npm install
+          npm run build
+          test -f dist/index.html
 
-      - name: Run TypeScript and Vite production build
-        run: npm run build
+      - name: Build v2 preview
+        working-directory: v2-source
+        env:
+          VITE_BASE_PATH: /super-zoos-dash/v2/
+        run: |
+          npm install
+          npm run build
+          test -f dist/index.html
 
-      - name: Verify production output
-        run: test -f dist/index.html
+      - name: Combine classic and v2 sites
+        run: |
+          rm -rf dist/v2
+          mkdir -p dist/v2
+          cp -R v2-source/dist/. dist/v2/
+          # The current v2 character loader uses the classic-root image path.
+          # Copy v2 character assets into the shared root until the loader is migrated.
+          if [ -d v2-source/dist/images ]; then
+            mkdir -p dist/images
+            cp -R v2-source/dist/images/. dist/images/
+          fi
+          test -f dist/index.html
+          test -f dist/v2/index.html
 
-      - name: Upload GitHub Pages artifact
+      - name: Upload combined GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
-    name: Deploy live game
+    name: Deploy classic and v2 preview
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
