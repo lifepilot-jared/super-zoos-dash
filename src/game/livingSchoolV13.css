@@ -77,12 +77,16 @@
 
 .school-route-v10-active .prop-gum-tree-v10,
 .school-route-v10-active .prop-fence-panel-v10 {
-  opacity: .44 !important;
-  filter: saturate(.78) brightness(.9) blur(.2px);
+  opacity: .38 !important;
+  filter: saturate(.72) brightness(.88) blur(.3px);
 }
 
-.school-route-v10-active .campus-route-v10 {
-  clip-path: polygon(0 0,18% 0,12% 100%,0 100%,0 0,100% 0,100% 100%,88% 100%,82% 0);
+/* Push all passing scenery beyond the gameplay corridor. */
+.school-route-v10-active .route-left-v10 {
+  margin-left: -18% !important;
+}
+.school-route-v10-active .route-right-v10 {
+  margin-left: 18% !important;
 }
 
 /* Lower, slightly smaller player creates a proper behind-the-runner composition. */
@@ -130,6 +134,15 @@
   padding: 5px 11px;
   font-size: clamp(.52rem,1.1vw,.72rem);
   opacity: .76;
+}
+
+/* Make the internal version chip match the deployed release. */
+.version-chip {
+  font-size: 0 !important;
+}
+.version-chip::after {
+  content: "V1.3 CHASE CAMERA";
+  font-size: .72rem;
 }
 
 @media (max-width: 1100px) and (orientation: landscape) {
