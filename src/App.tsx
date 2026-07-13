@@ -11,72 +11,87 @@ import "./game/characterStatesV06.css";
 import "./game/livingSchoolV07.css";
 import "./game/livingSchoolV08.css";
 
-type SafariWindow = Window & typeof globalThis & {
-  webkitAudioContext?: typeof AudioContext;
-};
+function createTrumpetWavUrl(): string {
+  const sampleRate = 44_100;
+  const durationSeconds = 1.25;
+  const sampleCount = Math.floor(sampleRate * durationSeconds);
+  const bytesPerSample = 2;
+  const buffer = new ArrayBuffer(44 + sampleCount * bytesPerSample);
+  const view = new DataView(buffer);
 
-type SoundTestResult = {
-  started: boolean;
-  state: AudioContextState | "unsupported";
-};
-
-async function playDirectSoundCheck(contextRef: { current: AudioContext | null }): Promise<SoundTestResult> {
-  const AudioContextClass = window.AudioContext ?? (window as SafariWindow).webkitAudioContext;
-  if (!AudioContextClass) return { started: false, state: "unsupported" };
-
-  const context = contextRef.current ?? new AudioContextClass();
-  contextRef.current = context;
-
-  try {
-    if (context.state !== "running") await context.resume();
-    if (context.state !== "running") return { started: false, state: context.state };
-
-    const start = context.currentTime + 0.045;
-    const notes = [196, 262, 392, 523, 784];
-
-    notes.forEach((frequency, index) => {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = index < 2 ? "sawtooth" : "triangle";
-      oscillator.frequency.setValueAtTime(frequency, start + index * 0.15);
-      if (index === 0) oscillator.frequency.exponentialRampToValueAtTime(420, start + 0.32);
-      gain.gain.setValueAtTime(0.0001, start + index * 0.15);
-      gain.gain.exponentialRampToValueAtTime(0.32, start + index * 0.15 + 0.025);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + index * 0.15 + 0.32);
-      oscillator.connect(gain).connect(context.destination);
-      oscillator.start(start + index * 0.15);
-      oscillator.stop(start + index * 0.15 + 0.36);
-    });
-
-    return { started: true, state: context.state };
-  } catch {
-    return { started: false, state: context.state };
+  function writeText(offset: number, text: string): void {
+    for (let index = 0; index < text.length; index += 1) {
+      view.setUint8(offset + index, text.charCodeAt(index));
+    }
   }
+
+  writeText(0, "RIFF");
+  view.setUint32(4, 36 + sampleCount * bytesPerSample, true);
+  writeText(8, "WAVE");
+  writeText(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * bytesPerSample, true);
+  view.setUint16(32, bytesPerSample, true);
+  view.setUint16(34, 16, true);
+  writeText(36, "data");
+  view.setUint32(40, sampleCount * bytesPerSample, true);
+
+  for (let index = 0; index < sampleCount; index += 1) {
+    const time = index / sampleRate;
+    const rise = Math.min(1, time / 0.035);
+    const fall = Math.max(0, 1 - time / durationSeconds);
+    const envelope = rise * fall * fall;
+    const glide = 215 + Math.min(1, time / 0.45) * 175;
+    const vibrato = Math.sin(2 * Math.PI * 5.2 * time) * 7;
+    const frequency = glide + vibrato;
+    const fundamental = Math.sin(2 * Math.PI * frequency * time);
+    const harmonic = 0.38 * Math.sin(2 * Math.PI * frequency * 2 * time);
+    const sparkle = time > 0.62 ? 0.22 * Math.sin(2 * Math.PI * 660 * time) : 0;
+    const sample = Math.max(-1, Math.min(1, (fundamental + harmonic + sparkle) * envelope * 0.72));
+    view.setInt16(44 + index * bytesPerSample, Math.round(sample * 32_767), true);
+  }
+
+  return URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
 }
 
 export default function App() {
-  const [soundStatus, setSoundStatus] = useState("Tap to test iPad audio");
-  const soundContextRef = useRef<AudioContext | null>(null);
+  const [soundStatus, setSoundStatus] = useState("Tap once to play a real WAV test");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
   useCharacterAssetBridge();
   useLivingSchoolExperience();
 
-  async function testSound() {
-    setSoundStatus("Requesting Safari audio…");
-    const result = await playDirectSoundCheck(soundContextRef);
+  async function testSound(): Promise<void> {
+    setSoundStatus("Starting iPad media audio…");
 
-    if (!result.started) {
-      setSoundStatus(`Audio engine: ${result.state}. Check iPad volume/output.`);
-      return;
+    try {
+      audioRef.current?.pause();
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+
+      const url = createTrumpetWavUrl();
+      audioUrlRef.current = url;
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.volume = 1;
+      audio.preload = "auto";
+      audio.setAttribute("playsinline", "true");
+      audio.addEventListener("ended", () => setSoundStatus("WAV playback completed. Did you hear Peter's trumpet?"), { once: true });
+      await audio.play();
+      setSoundStatus("WAV is playing now — raise media volume if silent");
+    } catch (error) {
+      const message = error instanceof Error ? error.name : "unknown error";
+      setSoundStatus(`Audio play failed: ${message}`);
     }
-
-    setSoundStatus(`Audio engine running. Did you hear the trumpet?`);
   }
 
   return (
     <>
       <div className="deployment-verification" role="status">
-        <strong>V0.8 PASSING SCHOOL + AUDIO CHECK</strong>
-        <button type="button" onClick={() => void testSound()}>Test Sound</button>
+        <strong>V0.9 FAST SCHOOL + WAV AUDIO</strong>
+        <button type="button" onClick={() => void testSound()}>Play Trumpet Test</button>
         <span>{soundStatus}</span>
       </div>
       <SuperZoosDash />
