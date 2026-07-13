@@ -9,59 +9,73 @@ import "./game/audioMotionVerification.css";
 import "./game/livingSchoolV06.css";
 import "./game/characterStatesV06.css";
 import "./game/livingSchoolV07.css";
+import "./game/livingSchoolV08.css";
 
 type SafariWindow = Window & typeof globalThis & {
   webkitAudioContext?: typeof AudioContext;
 };
 
-async function playDirectSoundCheck(contextRef: { current: AudioContext | null }): Promise<boolean> {
+type SoundTestResult = {
+  started: boolean;
+  state: AudioContextState | "unsupported";
+};
+
+async function playDirectSoundCheck(contextRef: { current: AudioContext | null }): Promise<SoundTestResult> {
   const AudioContextClass = window.AudioContext ?? (window as SafariWindow).webkitAudioContext;
-  if (!AudioContextClass) return false;
+  if (!AudioContextClass) return { started: false, state: "unsupported" };
 
   const context = contextRef.current ?? new AudioContextClass();
   contextRef.current = context;
 
   try {
     if (context.state !== "running") await context.resume();
-    const start = context.currentTime + 0.035;
-    const notes = [220, 330, 523, 784];
+    if (context.state !== "running") return { started: false, state: context.state };
+
+    const start = context.currentTime + 0.045;
+    const notes = [196, 262, 392, 523, 784];
 
     notes.forEach((frequency, index) => {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
       oscillator.type = index < 2 ? "sawtooth" : "triangle";
-      oscillator.frequency.setValueAtTime(frequency, start + index * 0.115);
-      if (index === 0) oscillator.frequency.exponentialRampToValueAtTime(390, start + 0.22);
-      gain.gain.setValueAtTime(0.0001, start + index * 0.115);
-      gain.gain.exponentialRampToValueAtTime(0.18, start + index * 0.115 + 0.018);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + index * 0.115 + 0.2);
+      oscillator.frequency.setValueAtTime(frequency, start + index * 0.15);
+      if (index === 0) oscillator.frequency.exponentialRampToValueAtTime(420, start + 0.32);
+      gain.gain.setValueAtTime(0.0001, start + index * 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.32, start + index * 0.15 + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + index * 0.15 + 0.32);
       oscillator.connect(gain).connect(context.destination);
-      oscillator.start(start + index * 0.115);
-      oscillator.stop(start + index * 0.115 + 0.23);
+      oscillator.start(start + index * 0.15);
+      oscillator.stop(start + index * 0.15 + 0.36);
     });
 
-    return true;
+    return { started: true, state: context.state };
   } catch {
-    return false;
+    return { started: false, state: context.state };
   }
 }
 
 export default function App() {
-  const [soundStatus, setSoundStatus] = useState("Tap once to verify sound");
+  const [soundStatus, setSoundStatus] = useState("Tap to test iPad audio");
   const soundContextRef = useRef<AudioContext | null>(null);
   useCharacterAssetBridge();
   useLivingSchoolExperience();
 
   async function testSound() {
-    setSoundStatus("Starting audio…");
-    const worked = await playDirectSoundCheck(soundContextRef);
-    setSoundStatus(worked ? "Sound active ✓" : "Audio blocked — check iPad mute/volume");
+    setSoundStatus("Requesting Safari audio…");
+    const result = await playDirectSoundCheck(soundContextRef);
+
+    if (!result.started) {
+      setSoundStatus(`Audio engine: ${result.state}. Check iPad volume/output.`);
+      return;
+    }
+
+    setSoundStatus(`Audio engine running. Did you hear the trumpet?`);
   }
 
   return (
     <>
       <div className="deployment-verification" role="status">
-        <strong>V0.7 LIVE SCHOOL + SOUND</strong>
+        <strong>V0.8 PASSING SCHOOL + AUDIO CHECK</strong>
         <button type="button" onClick={() => void testSound()}>Test Sound</button>
         <span>{soundStatus}</span>
       </div>
