@@ -1,0 +1,113 @@
+/* v1.1 — distinct school zones and gentle campus route banking */
+
+.school-route-v10-active .living-school-world-v10,
+.school-route-v10-active .campus-ground-v10,
+.school-route-v10-active .campus-route-v10 {
+  transition: transform 1.15s ease, filter 1.15s ease;
+  transform-origin: 50% 72%;
+}
+
+.school-route-v10-active.school-zone-v11-oval .living-school-world-v10 {
+  transform: translateX(0) rotateZ(0deg) scale(1);
+}
+
+.school-route-v10-active.school-zone-v11-court .living-school-world-v10 {
+  transform: translateX(2.8%) rotateZ(.7deg) scale(1.015);
+}
+.school-route-v10-active.school-zone-v11-court .campus-ground-v10,
+.school-route-v10-active.school-zone-v11-court .campus-route-v10 {
+  transform: translateX(2%) skewX(-1.5deg);
+}
+
+.school-route-v10-active.school-zone-v11-playground .living-school-world-v10 {
+  transform: translateX(-2.8%) rotateZ(-.7deg) scale(1.015);
+}
+.school-route-v10-active.school-zone-v11-playground .campus-ground-v10,
+.school-route-v10-active.school-zone-v11-playground .campus-route-v10 {
+  transform: translateX(-2%) skewX(1.5deg);
+}
+
+.school-route-v10-active.school-zone-v11-canteen .living-school-world-v10 {
+  transform: translateY(-1.2%) scale(1.025);
+}
+
+.school-zone-label-v11 {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  transform: translateX(-50%);
+  padding: 7px 14px;
+  border: 3px solid rgba(255,255,255,.9);
+  border-radius: 999px;
+  background: rgba(21,77,105,.84);
+  color: white;
+  font-size: clamp(.62rem,1.5vw,.95rem);
+  font-weight: 1000;
+  letter-spacing: .07em;
+  box-shadow: 0 8px 18px rgba(28,69,87,.22);
+  animation: zoneLabelPulseV11 9s ease both infinite;
+}
+
+.school-zone-v11-court .court-zone-v10,
+.school-zone-v11-court .court-hoop-v10 {
+  opacity: 1;
+  transform: scale(1.1) skewY(-7deg);
+  filter: saturate(1.15) drop-shadow(0 12px 12px rgba(67,44,27,.22));
+}
+.school-zone-v11-court .playground-zone-v10,
+.school-zone-v11-court .playground-tower-v10,
+.school-zone-v11-court .playground-slide-v10,
+.school-zone-v11-court .shade-sails-v10 {
+  opacity: .45;
+}
+
+.school-zone-v11-playground .playground-zone-v10,
+.school-zone-v11-playground .playground-tower-v10,
+.school-zone-v11-playground .playground-slide-v10,
+.school-zone-v11-playground .shade-sails-v10 {
+  opacity: 1;
+  filter: saturate(1.18) drop-shadow(0 12px 12px rgba(50,66,86,.2));
+}
+.school-zone-v11-playground .court-zone-v10,
+.school-zone-v11-playground .court-hoop-v10 {
+  opacity: .4;
+}
+
+.school-zone-v11-canteen .campus-canteen-v10,
+.school-zone-v11-canteen .campus-hall-v10 {
+  transform: scale(1.06);
+  filter: saturate(1.08) drop-shadow(0 12px 12px rgba(78,53,31,.18));
+}
+.school-zone-v11-canteen .campus-library-v10 {
+  opacity: .68;
+}
+
+.school-zone-v11-oval .oval-scoreboard-v10,
+.school-zone-v11-oval .distant-gums-v10 {
+  filter: saturate(1.12);
+}
+
+.campus-building-v10,
+.court-zone-v10,
+.court-hoop-v10,
+.playground-zone-v10,
+.playground-tower-v10,
+.playground-slide-v10,
+.shade-sails-v10 {
+  transition: opacity .9s ease, transform 1s ease, filter .9s ease;
+}
+
+@keyframes zoneLabelPulseV11 {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(.9); }
+  7%, 78% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(5px) scale(.95); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .school-route-v10-active .living-school-world-v10,
+  .school-route-v10-active .campus-ground-v10,
+  .school-route-v10-active .campus-route-v10 {
+    transition-duration: 2.5s;
+  }
+  .school-zone-label-v11 { animation: none; opacity: 1; }
+}
