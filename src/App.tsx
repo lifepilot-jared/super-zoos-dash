@@ -4,6 +4,7 @@ import "./game/startScreenFix.css";
 import "./game/schoolAdventurePass.css";
 import "./game/professionalUpgrade.css";
 import "./game/audioMotionVerification.css";
+import "./game/livingSchoolV06.css";
 
 function playDirectSoundCheck() {
   const AudioContextClass = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -41,7 +42,7 @@ export default function App() {
   return (
     <>
       <div className="deployment-verification" role="status">
-        <strong>LIVE BUILD v0.5.2</strong>
+        <strong>V0.6 WORK BRANCH — LIVING SCHOOL</strong>
         <button type="button" onClick={testSound}>Test Sound</button>
         <span>{soundStatus}</span>
       </div>
