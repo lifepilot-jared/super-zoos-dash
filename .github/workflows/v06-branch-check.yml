@@ -1,0 +1,34 @@
+name: V0.6 Branch Build Check
+
+on:
+  push:
+    branches:
+      - feature/super-zoos-adventure-v0.6
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v06-branch-check
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: TypeScript and Vite build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout v0.6 branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run production build
+        run: npm run build
