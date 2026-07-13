@@ -1,11 +1,51 @@
-/* v0.5.1 visible verification and motion repair */
+/* v0.5.2 visible verification and motion repair */
+
+.deployment-verification {
+  position: fixed;
+  z-index: 5000;
+  left: 10px;
+  bottom: 10px;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 6px 10px;
+  max-width: min(94vw, 430px);
+  padding: 9px 11px;
+  border: 3px solid #ffffff;
+  border-radius: 18px;
+  background: rgba(10, 45, 77, 0.94);
+  color: #ffffff;
+  box-shadow: 0 12px 30px rgba(0, 32, 64, 0.34);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.deployment-verification strong {
+  color: #72e8ff;
+  letter-spacing: 0.04em;
+}
+
+.deployment-verification button {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #ffe966, #ffae2b);
+  color: #382200;
+  font-weight: 1000;
+}
+
+.deployment-verification span {
+  grid-column: 1 / -1;
+  color: #d9f7ff;
+}
 
 .version-chip {
   font-size: 0 !important;
 }
 
 .version-chip::after {
-  content: "v0.5.1-audio-motion";
+  content: "v0.5.2-live-check";
   font-size: 0.72rem;
   letter-spacing: 0.04em;
 }
@@ -101,7 +141,7 @@
   opacity: 0.9;
 }
 
-/* Make Dr Winnie impossible to miss. */
+/* Make Dr Winnie impossible to miss when the cameo triggers. */
 .doctor-winnie-cameo {
   z-index: 30 !important;
   width: clamp(120px, 20vw, 220px) !important;
