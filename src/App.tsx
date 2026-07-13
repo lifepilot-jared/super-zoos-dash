@@ -94,7 +94,7 @@ export default function App() {
   return (
     <>
       <div className="deployment-verification" role="status">
-        <strong>V1.1 LIVING SCHOOL ZONES</strong>
+        <strong>V1.2 SYNCHRONIZED RUNNER MOTION</strong>
         <button type="button" onClick={() => void testSound()}>Play Peter Trumpet</button>
         <span>{soundStatus}</span>
       </div>
