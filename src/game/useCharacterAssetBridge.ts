@@ -1,86 +1,67 @@
 import { useEffect } from "react";
-import {
-  CHARACTER_FALLBACKS,
-  getCharacterAsset,
-  type HeroForm,
-  type HeroId,
-} from "./config/characterAssets";
+import { CHARACTER_FALLBACKS, getCharacterAsset, type HeroId } from "./config/characterAssets";
 
-/**
- * Bridges the existing runner component to the v0.6 character asset contract.
- *
- * The current MVP runner is intentionally left stable while v0.6 is developed.
- * This hook observes the rendered hero state and swaps the running sprite to the
- * correct rear-view image:
- *
- * normal -> ordinary plush rear view
- * super  -> superhero-suit rear view
- * aura   -> fully powered rear view with aura
- *
- * Missing PNG files fall back to the canonical SVG instead of displaying a
- * broken-image icon.
- */
+const BASE_PATH = typeof window !== "undefined" && window.location.pathname.startsWith("/super-zoos-dash")
+  ? "/super-zoos-dash/"
+  : "/";
+
+const FRAMES: Record<HeroId, { normal: string[]; super: string[] }> = {
+  peter: {
+    normal: ["peter-normal-run-01.png", "peter-normal-run-02.png", "peter-normal-run-03.png", "peter-normal-run-04.png"],
+    super: ["peter-super-run-01.png", "peter-super-turn-01.png", "peter-super-turn-02.png"],
+  },
+  judy: {
+    normal: ["judy-normal-run-01.png", "judy-normal-run-02.png", "judy-normal-run-03.png", "judy-normal-run-04.png"],
+    super: ["judy-super-run-01.png", "judy-super-turn-01.png"],
+  },
+};
+
+function framePath(filename: string): string {
+  return `${BASE_PATH}images/characters/animation/${filename}`;
+}
+
 export function useCharacterAssetBridge(): void {
   useEffect(() => {
-    const managedImages = new WeakSet<HTMLImageElement>();
+    const prepared = new WeakSet<HTMLImageElement>();
+    const unavailable = new WeakSet<HTMLImageElement>();
+    let request = 0;
 
-    function resolveHero(runner: Element): HeroId {
-      return runner.classList.contains("judy") ? "judy" : "peter";
-    }
-
-    function resolveForm(runner: Element): HeroForm {
-      if (runner.classList.contains("shielded")) return "aura";
-      if (runner.classList.contains("super")) return "super";
-      return "normal";
-    }
-
-    function applyRunnerAsset(runner: Element): void {
+    function update(runner: Element, now: number): void {
       const image = runner.querySelector<HTMLImageElement>("img.hero-sprite");
       if (!image) return;
-
-      const hero = resolveHero(runner);
-      const form = resolveForm(runner);
-      const desiredSource = getCharacterAsset(hero, form, "back");
+      const hero: HeroId = runner.classList.contains("judy") ? "judy" : "peter";
+      const aura = runner.classList.contains("shielded");
+      const superMode = runner.classList.contains("super");
 
       image.dataset.hero = hero;
-      image.dataset.form = form;
-      image.dataset.view = "back";
-
-      if (!managedImages.has(image)) {
-        managedImages.add(image);
+      if (!prepared.has(image)) {
+        prepared.add(image);
         image.addEventListener("error", () => {
-          const fallbackHero = image.dataset.hero === "judy" ? "judy" : "peter";
-          const fallback = CHARACTER_FALLBACKS[fallbackHero];
-          if (!image.src.endsWith(fallback)) image.src = fallback;
+          unavailable.add(image);
+          image.src = CHARACTER_FALLBACKS[hero];
           image.classList.add("using-character-fallback");
         });
-        image.addEventListener("load", () => {
-          if (!image.src.endsWith(CHARACTER_FALLBACKS[hero])) {
-            image.classList.remove("using-character-fallback");
-          }
-        });
       }
 
-      if (!image.src.endsWith(desiredSource)) {
-        image.classList.add("changing-character-form");
-        image.src = desiredSource;
-        window.setTimeout(() => image.classList.remove("changing-character-form"), 180);
+      if (unavailable.has(image)) return;
+
+      let source: string;
+      if (aura) {
+        source = getCharacterAsset(hero, "aura", "back");
+      } else {
+        const frames = FRAMES[hero][superMode ? "super" : "normal"];
+        source = framePath(frames[Math.floor(now / 125) % frames.length]);
       }
+
+      if (!image.src.endsWith(source)) image.src = source;
     }
 
-    function refresh(): void {
-      document.querySelectorAll(".hero-runner").forEach(applyRunnerAsset);
+    function animate(now: number): void {
+      document.querySelectorAll(".hero-runner").forEach((runner) => update(runner, now));
+      request = requestAnimationFrame(animate);
     }
 
-    refresh();
-    const observer = new MutationObserver(refresh);
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-
-    return () => observer.disconnect();
+    request = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(request);
   }, []);
 }
