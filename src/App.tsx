@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { SuperZoosDash } from "./game/SuperZoosDash";
+import { useCharacterAssetBridge } from "./game/useCharacterAssetBridge";
 import "./game/startScreenFix.css";
 import "./game/schoolAdventurePass.css";
 import "./game/professionalUpgrade.css";
 import "./game/audioMotionVerification.css";
 import "./game/livingSchoolV06.css";
+import "./game/characterStatesV06.css";
 
 function playDirectSoundCheck() {
   const AudioContextClass = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -33,6 +35,7 @@ function playDirectSoundCheck() {
 
 export default function App() {
   const [soundStatus, setSoundStatus] = useState("Tap to test sound");
+  useCharacterAssetBridge();
 
   function testSound() {
     const worked = playDirectSoundCheck();
@@ -42,7 +45,7 @@ export default function App() {
   return (
     <>
       <div className="deployment-verification" role="status">
-        <strong>V0.6 WORK BRANCH — LIVING SCHOOL</strong>
+        <strong>V0.6 STEP 3 — CHARACTER STATES</strong>
         <button type="button" onClick={testSound}>Test Sound</button>
         <span>{soundStatus}</span>
       </div>
