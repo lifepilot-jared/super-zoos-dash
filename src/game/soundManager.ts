@@ -1,139 +1,156 @@
-/**
- * Unified sound manager combining file-based and procedural audio
- * Automatically falls back to generated sounds if files are missing
- */
-
-import { playSoundEffect, type SoundType as GeneratedSoundType } from "./audioGenerator";
 import type { GameSound } from "./gameTypes";
 
+type BrowserWindow = Window & typeof globalThis & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
+/**
+ * iPad-safe sound manager.
+ *
+ * It plays uploaded audio files when available and otherwise generates a small,
+ * child-friendly Web Audio fallback. The implementation is intentionally
+ * self-contained so a missing helper module cannot break the production build.
+ */
 export class SoundManager {
-  private fileBasedSounds: Map<string, HTMLAudioElement> = new Map();
-  private enabled: boolean = true;
-  private masterVolume: number = 0.7;
+  private readonly fileBasedSounds = new Map<GameSound, HTMLAudioElement>();
+  private enabled = true;
+  private masterVolume = 0.7;
   private context: AudioContext | null = null;
 
-  constructor(enabled: boolean = true) {
+  constructor(enabled = true) {
     this.enabled = enabled;
   }
 
-  /**
-   * Enable audio context for procedural sounds
-   */
-  private initializeAudioContext(): AudioContext {
+  private getAudioContext(): AudioContext | null {
+    if (typeof window === "undefined") return null;
     if (this.context) return this.context;
 
-    this.context = new (window.AudioContext || (window as any).webkitAudioContext)();
-    // Unlock audio on first user interaction (iOS requirement)
-    document.addEventListener(
-      "click",
-      () => {
-        if (this.context?.state === "suspended") {
-          this.context?.resume();
-        }
-      },
-      { once: true },
-    );
+    const browserWindow = window as BrowserWindow;
+    const AudioContextClass = window.AudioContext ?? browserWindow.webkitAudioContext;
+    if (!AudioContextClass) return null;
 
+    this.context = new AudioContextClass();
     return this.context;
   }
 
-  /**
-   * Play a sound - tries file-based first, falls back to generated
-   */
+  /** Must be called from a user gesture on iPad Safari. */
+  async unlock(): Promise<void> {
+    const context = this.getAudioContext();
+    if (context?.state === "suspended") {
+      await context.resume();
+    }
+  }
+
   play(sound: GameSound): void {
     if (!this.enabled) return;
 
     const fileSound = this.fileBasedSounds.get(sound);
-
-    if (fileSound) {
-      try {
-        fileSound.currentTime = 0;
-        fileSound.volume = this.masterVolume;
-        void fileSound.play();
-      } catch (error) {
-        console.warn(`Failed to play file-based sound ${sound}:`, error);
-        this.playGeneratedFallback(sound);
-      }
-    } else {
-      this.playGeneratedFallback(sound);
+    if (fileSound?.readyState && fileSound.readyState >= 2) {
+      fileSound.currentTime = 0;
+      fileSound.volume = this.masterVolume;
+      void fileSound.play().catch(() => this.playGeneratedFallback(sound));
+      return;
     }
+
+    this.playGeneratedFallback(sound);
   }
 
-  /**
-   * Map game sounds to generated audio
-   */
   private playGeneratedFallback(sound: GameSound): void {
-    const soundTypeMap: Record<GameSound, GeneratedSoundType> = {
-      jump: "jump",
-      gem: "gem",
-      heroPower: "heroPower",
-      shield: "shield",
-      bump: "bump",
-      runEnd: "bump", // Reuse bump sound
+    const context = this.getAudioContext();
+    if (!context) return;
+
+    const playAfterResume = () => {
+      const now = context.currentTime + 0.01;
+      const volume = this.masterVolume;
+
+      switch (sound) {
+        case "jump":
+          this.tone(context, 320, 720, now, 0.16, volume * 0.22, "sine");
+          break;
+        case "gem":
+          // Short, playful elephant-like celebration.
+          this.tone(context, 220, 390, now, 0.26, volume * 0.2, "sawtooth");
+          this.tone(context, 520, 820, now + 0.12, 0.2, volume * 0.1, "triangle");
+          break;
+        case "heroPower":
+          this.tone(context, 180, 980, now, 0.42, volume * 0.2, "sawtooth");
+          this.tone(context, 420, 1320, now + 0.08, 0.34, volume * 0.12, "triangle");
+          break;
+        case "shield":
+          this.tone(context, 430, 720, now, 0.38, volume * 0.13, "sine");
+          this.tone(context, 720, 1050, now + 0.06, 0.32, volume * 0.09, "triangle");
+          break;
+        case "bump":
+          this.tone(context, 150, 72, now, 0.18, volume * 0.18, "sine");
+          break;
+        case "runEnd":
+          this.tone(context, 392, 392, now, 0.15, volume * 0.11, "triangle");
+          this.tone(context, 523, 523, now + 0.14, 0.17, volume * 0.12, "triangle");
+          this.tone(context, 659, 659, now + 0.3, 0.24, volume * 0.13, "triangle");
+          break;
+      }
     };
 
-    const generatedSoundType = soundTypeMap[sound];
-    if (generatedSoundType) {
-      try {
-        this.initializeAudioContext();
-        playSoundEffect(generatedSoundType);
-      } catch (error) {
-        console.warn(`Failed to generate sound for ${sound}:`, error);
-      }
+    if (context.state === "suspended") {
+      void context.resume().then(playAfterResume).catch(() => undefined);
+    } else {
+      playAfterResume();
     }
   }
 
-  /**
-   * Preload a file-based sound
-   */
+  private tone(
+    context: AudioContext,
+    startFrequency: number,
+    endFrequency: number,
+    startTime: number,
+    duration: number,
+    volume: number,
+    type: OscillatorType,
+  ): void {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(startFrequency, startTime);
+    oscillator.frequency.exponentialRampToValueAtTime(
+      Math.max(30, endFrequency),
+      startTime + duration,
+    );
+
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.exponentialRampToValueAtTime(
+      Math.max(0.0002, volume),
+      startTime + Math.min(0.025, duration * 0.2),
+    );
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration + 0.03);
+  }
+
   preloadSound(sound: GameSound, filePath: string): void {
-    if (this.fileBasedSounds.has(sound)) return;
+    if (this.fileBasedSounds.has(sound) || typeof Audio === "undefined") return;
 
     const audio = new Audio(filePath);
     audio.preload = "auto";
     audio.volume = this.masterVolume;
-
-    audio.addEventListener("error", () => {
-      console.warn(`Failed to load sound file: ${filePath}`);
-      // Don't cache on error, will fall back to generated
-      this.fileBasedSounds.delete(sound);
-    });
-
+    audio.addEventListener("error", () => this.fileBasedSounds.delete(sound));
     this.fileBasedSounds.set(sound, audio);
   }
 
-  /**
-   * Set master volume (0 to 1)
-   */
   setVolume(volume: number): void {
     this.masterVolume = Math.max(0, Math.min(1, volume));
-
     this.fileBasedSounds.forEach((audio) => {
       audio.volume = this.masterVolume;
     });
-
-    if (this.context) {
-      this.context.destination.maxChannelCount = Math.floor(this.masterVolume * 8);
-    }
   }
 
-  /**
-   * Enable/disable all sounds
-   */
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
-
-    if (!enabled) {
-      this.fileBasedSounds.forEach((audio) => {
-        audio.pause();
-        audio.currentTime = 0;
-      });
-    }
+    if (!enabled) this.stopAll();
   }
 
-  /**
-   * Stop all currently playing sounds
-   */
   stopAll(): void {
     this.fileBasedSounds.forEach((audio) => {
       audio.pause();
@@ -141,9 +158,6 @@ export class SoundManager {
     });
   }
 
-  /**
-   * Get sound manager status
-   */
   getStatus(): {
     enabled: boolean;
     volume: number;
