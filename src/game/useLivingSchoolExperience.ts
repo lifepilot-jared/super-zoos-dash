@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 
 const WORLD_CLASS = "living-school-world-v10";
-
+const ZONES = ["oval", "court", "playground", "canteen"] as const;
+type SchoolZone = (typeof ZONES)[number];
 type Side = "left" | "right";
 type PropKind =
   | "gum-tree"
@@ -119,16 +120,36 @@ function buildWorld(stage: Element): void {
 
   const eventLayer = makeElement("campus-layer-v10 campus-event-v10");
   eventLayer.append(
+    makeElement("school-zone-label-v11", "SCHOOL OVAL"),
     makeElement("winnie-action-banner-v10", "THUNDER WINNIE MADE A RED RIPPLE!"),
   );
 
   world.append(sky, far, mid, ground, route, eventLayer);
   stage.prepend(world);
-  stage.classList.add("school-route-v10-active");
+  stage.classList.add("school-route-v10-active", "school-zone-v11-oval");
+  stage.setAttribute("data-school-zone", "oval");
+}
+
+function applyZone(stage: Element, zone: SchoolZone): void {
+  ZONES.forEach((name) => stage.classList.remove(`school-zone-v11-${name}`));
+  stage.classList.add(`school-zone-v11-${zone}`);
+  stage.setAttribute("data-school-zone", zone);
+
+  const label = stage.querySelector<HTMLElement>(".school-zone-label-v11");
+  if (label) {
+    label.textContent = {
+      oval: "SCHOOL OVAL",
+      court: "BASKETBALL COURT",
+      playground: "PLAYGROUND RUN",
+      canteen: "CANTEEN & HALL",
+    }[zone];
+  }
 }
 
 export function useLivingSchoolExperience(): void {
   useEffect(() => {
+    let zoneIndex = 0;
+
     function refresh(): void {
       document.querySelectorAll(".school-stage").forEach((stage) => {
         buildWorld(stage);
@@ -140,6 +161,17 @@ export function useLivingSchoolExperience(): void {
     refresh();
     const observer = new MutationObserver(refresh);
     observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+
+    const zoneTimer = window.setInterval(() => {
+      zoneIndex = (zoneIndex + 1) % ZONES.length;
+      document.querySelectorAll(".school-stage.school-route-v10-active").forEach((stage) => {
+        applyZone(stage, ZONES[zoneIndex]);
+      });
+    }, 9000);
+
+    return () => {
+      observer.disconnect();
+      window.clearInterval(zoneTimer);
+    };
   }, []);
 }
