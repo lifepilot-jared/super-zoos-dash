@@ -14,36 +14,25 @@ export type GameAudioController = {
   play: (sound: GameSound) => void;
 };
 
-type BrowserAudioContext = typeof AudioContext;
+type SafariWindow = Window & typeof globalThis & {
+  webkitAudioContext?: typeof AudioContext;
+};
 
-function getAudioContextConstructor(): BrowserAudioContext | null {
+function audioContextConstructor(): typeof AudioContext | null {
   if (typeof window === "undefined") return null;
-  return window.AudioContext ?? ((window as typeof window & { webkitAudioContext?: BrowserAudioContext }).webkitAudioContext ?? null);
+  return window.AudioContext ?? (window as SafariWindow).webkitAudioContext ?? null;
 }
 
 export function createGameAudio(isEnabled: () => boolean): GameAudioController {
-  const cache = new Map<GameSound, HTMLAudioElement>();
-  let unlocked = false;
+  const uploaded = new Map<GameSound, HTMLAudioElement>();
   let context: AudioContext | null = null;
+  let unlocked = false;
 
-  function getContext() {
-    const Constructor = getAudioContextConstructor();
+  function getContext(): AudioContext | null {
+    const Constructor = audioContextConstructor();
     if (!Constructor) return null;
     context ??= new Constructor();
     return context;
-  }
-
-  async function ensureRunningContext() {
-    const ctx = getContext();
-    if (!ctx) return null;
-    if (ctx.state === "suspended") {
-      try {
-        await ctx.resume();
-      } catch {
-        return null;
-      }
-    }
-    return ctx;
   }
 
   function tone(
@@ -59,27 +48,29 @@ export function createGameAudio(isEnabled: () => boolean): GameAudioController {
     const gain = ctx.createGain();
     oscillator.type = type;
     oscillator.frequency.setValueAtTime(frequency, start);
-    if (endFrequency) oscillator.frequency.exponentialRampToValueAtTime(Math.max(30, endFrequency), start + duration);
+    if (endFrequency) {
+      oscillator.frequency.exponentialRampToValueAtTime(Math.max(35, endFrequency), start + duration);
+    }
     gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, volume), start + Math.min(0.025, duration * 0.2));
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, volume), start + 0.018);
     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
     oscillator.connect(gain).connect(ctx.destination);
     oscillator.start(start);
-    oscillator.stop(start + duration + 0.03);
+    oscillator.stop(start + duration + 0.04);
   }
 
   function noise(ctx: AudioContext, start: number, duration: number, volume: number) {
-    const sampleCount = Math.ceil(ctx.sampleRate * duration);
-    const buffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate);
+    const length = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
     const data = buffer.getChannelData(0);
-    for (let index = 0; index < sampleCount; index += 1) {
-      data[index] = (Math.random() * 2 - 1) * (1 - index / sampleCount);
+    for (let index = 0; index < length; index += 1) {
+      data[index] = (Math.random() * 2 - 1) * (1 - index / length);
     }
     const source = ctx.createBufferSource();
     const gain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
     filter.type = "lowpass";
-    filter.frequency.value = 1500;
+    filter.frequency.value = 1650;
     gain.gain.setValueAtTime(volume, start);
     gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
     source.buffer = buffer;
@@ -88,81 +79,93 @@ export function createGameAudio(isEnabled: () => boolean): GameAudioController {
   }
 
   function synthesize(ctx: AudioContext, sound: GameSound) {
-    const now = ctx.currentTime + 0.012;
+    const now = ctx.currentTime + 0.015;
     switch (sound) {
       case "jump":
-        tone(ctx, 300, now, 0.12, 0.22, "sine", 760);
-        tone(ctx, 520, now + 0.045, 0.11, 0.12, "triangle", 980);
-        noise(ctx, now + 0.14, 0.05, 0.045);
+        tone(ctx, 290, now, 0.15, 0.22, "sine", 760);
+        tone(ctx, 470, now + 0.045, 0.12, 0.12, "triangle", 980);
+        noise(ctx, now + 0.13, 0.05, 0.04);
         break;
       case "gem":
-        tone(ctx, 210, now, 0.28, 0.22, "sawtooth", 430);
-        tone(ctx, 430, now + 0.04, 0.22, 0.11, "sine", 690);
-        tone(ctx, 820, now + 0.18, 0.16, 0.08, "triangle", 1200);
-        tone(ctx, 1180, now + 0.29, 0.14, 0.06, "sine", 1500);
+        // Peter's cheerful elephant-style trumpet and sparkle.
+        tone(ctx, 190, now, 0.26, 0.22, "sawtooth", 360);
+        tone(ctx, 275, now + 0.045, 0.24, 0.14, "square", 470);
+        tone(ctx, 650, now + 0.18, 0.16, 0.1, "triangle", 980);
+        tone(ctx, 1040, now + 0.29, 0.14, 0.07, "sine", 1420);
         break;
       case "heroPower":
-        tone(ctx, 160, now, 0.46, 0.22, "sawtooth", 980);
-        tone(ctx, 350, now + 0.07, 0.36, 0.14, "square", 1320);
-        tone(ctx, 780, now + 0.24, 0.28, 0.10, "triangle", 1700);
-        noise(ctx, now, 0.36, 0.045);
+        tone(ctx, 145, now, 0.48, 0.22, "sawtooth", 1050);
+        tone(ctx, 330, now + 0.075, 0.4, 0.15, "square", 1450);
+        tone(ctx, 760, now + 0.26, 0.3, 0.12, "triangle", 1760);
+        noise(ctx, now, 0.34, 0.045);
         break;
       case "shield":
-        tone(ctx, 390, now, 0.42, 0.14, "sine", 650);
-        tone(ctx, 620, now + 0.04, 0.38, 0.10, "triangle", 980);
-        tone(ctx, 980, now + 0.12, 0.30, 0.07, "sine", 1260);
+        tone(ctx, 360, now, 0.42, 0.15, "sine", 650);
+        tone(ctx, 610, now + 0.04, 0.4, 0.11, "triangle", 980);
+        tone(ctx, 940, now + 0.13, 0.3, 0.08, "sine", 1280);
         break;
       case "bump":
-        tone(ctx, 150, now, 0.18, 0.20, "sine", 70);
-        noise(ctx, now, 0.13, 0.06);
+        tone(ctx, 135, now, 0.2, 0.2, "sine", 62);
+        noise(ctx, now, 0.13, 0.07);
         break;
       case "runEnd":
-        tone(ctx, 392, now, 0.18, 0.11, "triangle");
-        tone(ctx, 523, now + 0.15, 0.20, 0.12, "triangle");
-        tone(ctx, 659, now + 0.31, 0.25, 0.13, "triangle");
-        tone(ctx, 784, now + 0.49, 0.32, 0.11, "sine");
+        tone(ctx, 392, now, 0.2, 0.12, "triangle");
+        tone(ctx, 523, now + 0.15, 0.21, 0.13, "triangle");
+        tone(ctx, 659, now + 0.31, 0.25, 0.14, "triangle");
+        tone(ctx, 784, now + 0.5, 0.32, 0.12, "sine");
         break;
     }
   }
 
-  function getUploadedAudio(sound: GameSound): HTMLAudioElement | null {
+  function uploadedAudio(sound: GameSound): HTMLAudioElement | null {
     const path = SOUND_PATHS[sound];
     if (!path) return null;
-    const cached = cache.get(sound);
+    const cached = uploaded.get(sound);
     if (cached) return cached;
     const audio = new Audio(path);
     audio.preload = "auto";
-    audio.volume = sound === "bump" ? 0.45 : 0.75;
-    cache.set(sound, audio);
+    audio.volume = sound === "bump" ? 0.42 : 0.65;
+    uploaded.set(sound, audio);
     return audio;
+  }
+
+  function runSound(sound: GameSound) {
+    const ctx = getContext();
+    if (!ctx) return;
+    const playNow = () => {
+      synthesize(ctx, sound);
+      const clip = uploadedAudio(sound);
+      if (clip?.readyState && clip.readyState >= 2) {
+        clip.currentTime = 0;
+        void clip.play().catch(() => undefined);
+      }
+    };
+
+    if (ctx.state === "running") {
+      playNow();
+      return;
+    }
+
+    void ctx.resume().then(playNow).catch(() => undefined);
   }
 
   return {
     unlock() {
       unlocked = true;
-      void ensureRunningContext().then((ctx) => {
-        if (!ctx) return;
-        const oscillator = ctx.createOscillator();
-        const gain = ctx.createGain();
-        gain.gain.value = 0.0001;
-        oscillator.connect(gain).connect(ctx.destination);
-        oscillator.start();
-        oscillator.stop(ctx.currentTime + 0.02);
-      });
+      const ctx = getContext();
+      if (!ctx) return;
+      // A silent pulse inside the user's tap primes iPad Safari audio.
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0.00001;
+      oscillator.connect(gain).connect(ctx.destination);
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + 0.02);
+      void ctx.resume().catch(() => undefined);
     },
     play(sound) {
       if (!unlocked || !isEnabled()) return;
-      void ensureRunningContext().then((ctx) => {
-        if (!ctx || !isEnabled()) return;
-        synthesize(ctx, sound);
-      });
-
-      const audio = getUploadedAudio(sound);
-      if (!audio) return;
-      audio.currentTime = 0;
-      void audio.play().catch(() => {
-        // Missing custom clips or iPad autoplay restrictions must never break gameplay.
-      });
+      runSound(sound);
     },
   };
 }
